@@ -1,0 +1,10 @@
+build/
+install/
+log/
+
+*.o
+*.so
+*.a
+*.pyc
+*.log
+.DS_Store
