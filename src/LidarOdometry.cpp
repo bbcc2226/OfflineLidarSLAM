@@ -15,10 +15,14 @@ std::pair<bool,Se3> LidarOdodmetry::AddCloud(std::shared_ptr<PointCloud>& filter
 
     }else{
         Se3 guess = predicted_pose;
-        if(est_pose_buffer_.size() >= 2 && (frame_cnt_ < 20 || use_lo)){
+        Se3 motion_predicted_pose;
+        if(est_pose_buffer_.size() >= 2 ){
             Se3 T1 = est_pose_buffer_[est_pose_buffer_.size() - 1];
             Se3 T2 = est_pose_buffer_[est_pose_buffer_.size() - 2];
-            guess = T1 * (T2.inverse() * T1);
+            motion_predicted_pose = T1 * (T2.inverse() * T1);
+            if(use_lo || frame_cnt_ < 20 ){
+                guess = motion_predicted_pose;
+            }
         }
         Se3 est_pose = ndt_inc_.Align(filtered_cloud_ptr,guess);
         est_pose_buffer_.push_back(est_pose);
@@ -40,6 +44,13 @@ std::pair<bool,Se3> LidarOdodmetry::AddCloud(std::shared_ptr<PointCloud>& filter
     }
 } 
 
+bool LidarOdodmetry::LargeDifferenceCheck(const Se3& pose1, const Se3& pose2){
+
+    Se3 delta = pose1.inverse() * pose2;
+    
+    return delta.translation().norm() > 1.5 ||
+            delta.so3().log().norm() > 10.0 / 180.0 * M_PI;
+}
 
 bool LidarOdodmetry::KeyFrameCheck(const Se3& input_pose){
 
