@@ -8,6 +8,8 @@
 #include <rclcpp/rclcpp.hpp>
 #include <sensor_msgs/msg/point_cloud2.hpp>
 #include <sensor_msgs/point_cloud2_iterator.hpp>
+#include <nav_msgs/msg/path.hpp>
+#include <geometry_msgs/msg/pose_stamped.hpp>
 
 class VoxelizedMap {
 public:
@@ -144,11 +146,49 @@ private:
 };
 
 
+class PathPublisher : public rclcpp::Node {
+public:
+    PathPublisher() : Node("path_publisher") {
+        path_pub_ = this->create_publisher<nav_msgs::msg::Path>("/trajectory", 10);
+    }
+    void AddPathPoint(const Vec3& pos) {
+        geometry_msgs::msg::PoseStamped pose;
+
+        pose.header.stamp = this->now();
+        pose.header.frame_id = "map";
+
+        pose.pose.position.x = pos.x();
+        pose.pose.position.y = pos.y();
+        pose.pose.position.z = 0.0;
+
+        pose.pose.orientation.w = 1.0;
+
+        path_.header.stamp = this->now();
+        path_.header.frame_id = "map";
+
+        path_.poses.push_back(pose);
+
+        path_pub_->publish(path_);
+    }
+    void PopFront(){
+        path_.poses.erase(path_.poses.begin());
+    }
+
+private:
+
+    rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr path_pub_;
+    nav_msgs::msg::Path path_;
+    rclcpp::TimerBase::SharedPtr timer_;
+};
+
+
 struct SlamProcess::Impl{
     Impl():voxel_map_(0.3),surfel_map_(1.0){
         slam_front_end_.SetKeyFrameCB([this](std::shared_ptr<KeyFrame> key_frame_ptr){
 
             std::cout<<std::setprecision(15)<<"!!!!!!keyframe :"<<key_frame_ptr->timestamp_<<"\n";   
+            Vec3 translation = key_frame_ptr->lio_pose_.translation();
+            path_publisher_.AddPathPoint(translation);
             std::vector<Vec3> curr_point_cloud_global;
             submap_queue_.push(key_frame_ptr->saved_frame_path_);
             LoadPLY(key_frame_ptr->saved_frame_path_,curr_point_cloud_global);
@@ -167,6 +207,7 @@ struct SlamProcess::Impl{
                 LoadPLY(pop_str,pop_point_cloud_global);
                 voxel_map_.RemoveCloud(pop_point_cloud_global);
                 submap_queue_.pop();
+                path_publisher_.PopFront();
             }
         });
 
@@ -221,6 +262,7 @@ private:
     SlamFrontEnd slam_front_end_;
     VoxelizedMap voxel_map_;
     MapPublisher map_publisher_;
+    PathPublisher path_publisher_;
     std::thread map_pub_thread;
     std::thread front_end_thread;
     std::atomic<bool> stop_{false};
