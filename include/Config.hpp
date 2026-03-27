@@ -13,8 +13,8 @@ namespace Config
         constexpr double process_rot_noise = 0.1;
         constexpr double process_ba_noise = 1.0e-7;
         constexpr double process_bg_noise = 1.0e-7;
-        constexpr double measurement_pos_noise = 1.0e-3;
-        constexpr double measurement_rot_noise = 1.0e-3;
+        constexpr double measurement_pos_noise = 1.0e-5;
+        constexpr double measurement_rot_noise = 1.0e-5;
     }
 
     namespace FrontEnd{
@@ -47,14 +47,14 @@ namespace Config
 
     namespace LidarOdometry{
         constexpr double voxel_resolution = 0.7;
-        constexpr double ndt_resolution = 2.0;
+        constexpr double ndt_resolution = 4.0;
     }
 
     namespace DataLoader{
         constexpr bool remove_groud = true;
         constexpr double kitti_groud_height = -1.0;
-        const std::string ros_bag_path = "/root/ros2_ws/2011_09_26_drive_0035_extract_bag";
-        //const std::string ros_bag_path = "/root/ros2_ws/2011_10_03_drive_0027_bag";
+        //const std::string ros_bag_path = "/root/ros2_ws/2011_09_26_drive_0035_extract_bag";
+        const std::string ros_bag_path = "/root/ros2_ws/2011_10_03_drive_0027_bag";
         
     }
 
