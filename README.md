@@ -41,7 +41,6 @@ offline_lidar_slam/
 │   ├── LidarOdometry.cpp        # NDT-based odometry estimation
 │   ├── NDT_INC.cpp              # NDT point cloud registration
 │   ├── SlamProcess.cpp          # Main SLAM orchestration
-│   └── VoxelSurfelMap.cpp       # Voxelized map management
 ├── script/
 │   └── kitti_unsynced_ros2bag.py # Utility for dataset conversion
 ├── test/                         # Unit tests
