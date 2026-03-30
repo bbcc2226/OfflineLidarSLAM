@@ -33,9 +33,6 @@ std::shared_ptr<PointCloud> ApplyDownSampleFilter(std::shared_ptr<PointCloud> in
 // apply range filter for point cloud
 std::shared_ptr<PointCloud> ApplyRangeFilter(std::shared_ptr<PointCloud> input_cloud_ptr);
 
-
-std::vector<Eigen::Vector3d> ComputeNormalsKNN(const std::vector<Eigen::Vector3d>& points, const int k = 20);
-
 // Generate frame file path
 std::string GenerateFramePath(const std::string folder_path, const int frame_count);
 

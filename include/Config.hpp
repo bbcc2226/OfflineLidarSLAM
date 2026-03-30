@@ -35,6 +35,8 @@ namespace Config
         constexpr int lidar_buffer_lower_capacity = 10;
         constexpr int imu_buffer_lower_capacity = 200;
         constexpr int gps_buffer_lower_capacity = 200;
+
+        inline const std::string lio_dir_path = "./LIO_results";
     }
 
     namespace GeoConverter

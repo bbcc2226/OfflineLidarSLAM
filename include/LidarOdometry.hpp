@@ -30,7 +30,6 @@ private:
     bool KeyFrameCheck(const Se3& input_pose);
 
     void SaveFrame(const std::shared_ptr<PointCloud>& cloud);
-    bool LargeDifferenceCheck(const Se3& pose1, const Se3& pose2)
 
 };
 

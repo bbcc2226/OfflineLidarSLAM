@@ -6,6 +6,7 @@
 #include "LidarOdometry.hpp"
 #include "DataType.hpp"
 #include "GeoConverter.hpp"
+
 #include <memory>
 #include <queue>
 #include <deque>
@@ -13,6 +14,10 @@
 #include <thread>
 #include <mutex>
 #include <atomic>
+#include <filesystem>
+#include <iostream>
+
+namespace fs = std::filesystem;
 
 struct RTKYawAlignment{
     std::vector<Vec2> rtk_pos_list_;
@@ -437,7 +442,16 @@ std::string SlamFrontEnd::Impl::SaveLIOFrame(Se3& global_pose,const std::shared_
         }else{
             converted_cloud = ApplyTransform(global_pose,cloud);
         }
-        const std::string frame_path = GenerateFramePath("./LIO_results",frame_id);
+        fs::path dir = Config::FrontEnd::lio_dir_path;
+        if (!fs::exists(dir)) {
+            if (fs::create_directory(dir)) {
+                std::cout << "Directory created\n";
+            } else {
+                std::cout << "Failed to create directory\n";
+            }
+        }
+
+        const std::string frame_path = GenerateFramePath(Config::FrontEnd::lio_dir_path,frame_id);
         SaveCloud(converted_cloud, frame_path);
         return frame_path;
     }else{

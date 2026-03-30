@@ -44,13 +44,6 @@ std::pair<bool,Se3> LidarOdodmetry::AddCloud(std::shared_ptr<PointCloud>& filter
     }
 } 
 
-bool LidarOdodmetry::LargeDifferenceCheck(const Se3& pose1, const Se3& pose2){
-
-    Se3 delta = pose1.inverse() * pose2;
-    
-    return delta.translation().norm() > 1.5 ||
-            delta.so3().log().norm() > 10.0 / 180.0 * M_PI;
-}
 
 bool LidarOdodmetry::KeyFrameCheck(const Se3& input_pose){
 

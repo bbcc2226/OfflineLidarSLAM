@@ -1,7 +1,6 @@
 #include "SlamProcess.hpp"
 #include "FrontEnd.hpp"
 #include "Common.hpp"
-#include "VoxelSurfelMap.hpp"
 #include <iostream>
 #include <iomanip>
 #include <queue>
@@ -183,7 +182,7 @@ private:
 
 
 struct SlamProcess::Impl{
-    Impl():voxel_map_(0.3),surfel_map_(1.0){
+    Impl():voxel_map_(0.3){
         slam_front_end_.SetKeyFrameCB([this](std::shared_ptr<KeyFrame> key_frame_ptr){
 
             std::cout<<std::setprecision(15)<<"!!!!!!keyframe :"<<key_frame_ptr->timestamp_<<"\n";   
@@ -267,7 +266,6 @@ private:
     std::thread front_end_thread;
     std::atomic<bool> stop_{false};
     std::queue<std::string> submap_queue_;
-    VoxelSurfelMap surfel_map_;
     std::mutex combine_map_mtx_;
 };
 

@@ -5,7 +5,6 @@
 #include <array>
 #include <Eigen/Dense>
 #include <memory>
-#include "nanoflann.hpp"
 #include "sophus/so3.hpp"
 #include "sophus/se3.hpp"
 
@@ -119,25 +118,5 @@ struct KeyFrame{
     Se3 lio_pose_;
 };
 
-struct PointCloudAdaptor {
-    const std::vector<Vec3>& pts;
-
-    PointCloudAdaptor(const std::vector<Vec3>& points) : pts(points) {}
-
-    inline size_t kdtree_get_point_count() const { return pts.size(); }
-
-    inline double kdtree_get_pt(const size_t idx, int dim) const {
-        return pts[idx][dim];
-    }
-
-    template <class BBOX>
-    bool kdtree_get_bbox(BBOX&) const { return false; }
-};
-
-using KDTree = nanoflann::KDTreeSingleIndexAdaptor<
-    nanoflann::L2_Simple_Adaptor<double, PointCloudAdaptor>,
-    PointCloudAdaptor,
-    3
->;
 
 #endif

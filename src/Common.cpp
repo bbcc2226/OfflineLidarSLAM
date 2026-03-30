@@ -83,55 +83,6 @@ std::shared_ptr<PointCloud> ApplyRangeFilter(std::shared_ptr<PointCloud> input_c
 }
 
 
-std::vector<Vec3> ComputeNormalsKNN(
-    const std::vector<Vec3>& points,
-    const int k)
-{
-    std::vector<Vec3> normals(points.size(), Eigen::Vector3d::UnitZ());
-
-    if (points.size() < k) return normals;
-
-    PointCloudAdaptor adaptor(points);
-    KDTree tree(3, adaptor, nanoflann::KDTreeSingleIndexAdaptorParams(10));
-    tree.buildIndex();
-
-    std::vector<size_t> ret_index(k);
-    std::vector<double> out_dist_sqr(k);
-
-    for (size_t i = 0; i < points.size(); ++i) {
-
-        const double query_pt[3] = {
-            points[i].x(), points[i].y(), points[i].z()
-        };
-
-        nanoflann::KNNResultSet<double> resultSet(k);
-        resultSet.init(ret_index.data(), out_dist_sqr.data());
-
-        tree.findNeighbors(resultSet, query_pt);
-
-        // Compute mean
-        Vec3 mean = Eigen::Vector3d::Zero();
-        for (int j = 0; j < k; ++j)
-            mean += points[ret_index[j]];
-        mean /= k;
-
-        // Compute covariance
-        Eigen::Matrix3d cov = Eigen::Matrix3d::Zero();
-        for (int j = 0; j < k; ++j) {
-            Eigen::Vector3d d = points[ret_index[j]] - mean;
-            cov += d * d.transpose();
-        }
-
-        // Eigen decomposition
-        Eigen::SelfAdjointEigenSolver<Eigen::Matrix3d> solver(cov);
-        Eigen::Vector3d normal = solver.eigenvectors().col(0);
-
-        normals[i] = normal;
-    }
-
-    return normals;
-}
-
 // -------- Generate frame path --------
 std::string GenerateFramePath(const std::string folder_path, const int frame_count){
     std::ostringstream oss;
