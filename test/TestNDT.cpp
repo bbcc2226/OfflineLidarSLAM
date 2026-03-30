@@ -1,4 +1,3 @@
-#include "NDT.hpp"
 #include "NDT_INC.hpp"
 #include <gtest/gtest.h>
 #include <fstream>
@@ -13,52 +12,6 @@
 #include <pcl/point_types.h>
 #include <pcl/point_cloud.h>
 #include <pcl/io/ply_io.h>
-
-
-
-TEST(NDTTest, SimTest)
-{
-
-    std::shared_ptr<PointCloud> target_cloud_ptr = ApplyDownSampleFilter(LoadKittiBin("lidar.bin"));
-    std::shared_ptr<PointCloud> source_cloud_ptr = std::make_shared<PointCloud>();
-    Sophus::SE3d gt(Sophus::SO3d::exp(Eigen::Vector3d(0.1,0.2,0)),Eigen::Vector3d(0.2,0.2,0.1));
-
-    Eigen::Vector3d point;
-    for (size_t i = 0; i < target_cloud_ptr->pt_list_.size(); ++i){
-        point << target_cloud_ptr->pt_list_[i][0],target_cloud_ptr->pt_list_[i][1],target_cloud_ptr->pt_list_[i][2];
-        Eigen::Vector3d trans_pt = gt.inverse() * point;
-        source_cloud_ptr->pt_list_.push_back({trans_pt[0],trans_pt[1],trans_pt[2]});
-    }
-    
-    NDTGridMap ndt_map(5,target_cloud_ptr);
-    ndt_map.BuildVoxelGrid();
-
-    Sophus::SE3d est = ndt_map.Align(source_cloud_ptr, Sophus::SE3d());
-
-
-    std::cout << "Estimated:" << est.matrix() << std::endl;
-    std::cout << "GT:" << gt.matrix() << std::endl;
-
-}
-
-TEST(NDTTest, RealTest)
-{
-
-    std::shared_ptr<PointCloud> target_cloud_ptr = ApplyDownSampleFilter(LoadKittiBin("lidar.bin"));
-    std::shared_ptr<PointCloud> source_cloud_ptr = ApplyDownSampleFilter(LoadKittiBin("lidar1.bin"));
-    
-    TicToc timer;
-
-    timer.tic();
-    NDTGridMap ndt_map(5,target_cloud_ptr);
-    ndt_map.BuildVoxelGrid();
-
-    Sophus::SE3d est = ndt_map.Align(source_cloud_ptr, Sophus::SE3d());
-
-    timer.toc("NDT processing time is: ");
-    std::cout << "Estimated:" << est.matrix() << std::endl;
-
-}
 
 
 TEST(NDT_INC_Test, RealTest)
