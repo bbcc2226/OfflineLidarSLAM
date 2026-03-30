@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.8)
-project(slam_proj)
+project(offline_lidar_slam)
 
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(-Wall -Wextra -Wpedantic)
@@ -73,7 +73,6 @@ add_library(frontend
 )
 
 add_library(slam_process
-  src/VoxelSurfelMap.cpp
   src/SlamProcess.cpp
 )
 
