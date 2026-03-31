@@ -1,4 +1,5 @@
 #include "GeoConverter.hpp"
+#include "ConfigManager.hpp"
 
 Vec3 GeoConverter::Geo2ECEF(double lat, double lon, double alt)
 {
@@ -6,12 +7,12 @@ Vec3 GeoConverter::Geo2ECEF(double lat, double lon, double alt)
   lat = lat * M_PI / 180.0;
   lon = lon * M_PI / 180.0;
 
-  const double N = Config::GeoConverter::a / std::sqrt(
-    1 - Config::GeoConverter::e2 * std::sin(
+  const double N = ConfigManager::Get().GeoConverter_.a / std::sqrt(
+    1 - ConfigManager::Get().GeoConverter_.e2 * std::sin(
       lat) * std::sin(lat));
   const double x = (N + alt) * std::cos(lat) * std::cos(lon);
   const double y = (N + alt) * std::cos(lat) * std::sin(lon);
-  const double z = (N * (1 - Config::GeoConverter::e2) + alt) * std::sin(lat);
+  const double z = (N * (1 - ConfigManager::Get().GeoConverter_.e2) + alt) * std::sin(lat);
 
   return Vec3(x, y, z);
 }

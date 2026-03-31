@@ -1,0 +1,39 @@
+ESKF:
+  process_vel_noise: 0.1
+  process_rot_noise: 0.1
+  process_ba_noise: 1.0e-7
+  process_bg_noise: 1.0e-7
+  measurement_pos_noise: 1.0e-5
+  measurement_rot_noise: 1.0e-5
+
+FrontEnd:
+  lidar_buffer_upper_capacity: 100
+  imu_buffer_upper_capacity: 2000
+  gps_buffer_upper_capacity: 2000
+
+  lidar_buffer_lower_capacity: 10
+  imu_buffer_lower_capacity: 200
+  gps_buffer_lower_capacity: 200
+
+  lio_dir_path: "./LIO_results"
+
+GeoConverter:
+  a: 6378137.0
+  f: 0.0033528106647474805   
+  b: 6356752.314245          
+  e2: 0.00669437999014       
+
+LidarOdometry:
+  voxel_resolution: 0.7
+  ndt_resolution: 2.0
+
+DataLoader:
+  remove_groud: true
+  kitti_groud_height: -1.0
+  ros_bag_path: "/root/ros2_ws/2011_10_03_drive_0027_bag"
+
+General:
+  map_voxel_resolution: 0.4
+  save_lo_frame: false
+  save_lio_frame: true
+  filter_saved_cloud: true

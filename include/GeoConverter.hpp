@@ -4,7 +4,6 @@
 #include <Eigen/Dense>
 #include <cmath>
 #include "DataType.hpp"
-#include "Config.hpp"
 
 class GeoConverter
 {

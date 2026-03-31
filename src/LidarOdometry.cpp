@@ -1,5 +1,5 @@
 #include "LidarOdometry.hpp"
-
+#include "ConfigManager.hpp"
 
 std::pair<bool,Se3> LidarOdodmetry::AddCloud(std::shared_ptr<PointCloud>& filtered_cloud_ptr, std::shared_ptr<PointCloud>& raw_cloud_ptr, const Se3& predicted_pose, bool use_lo){
     total_cnt_ += 1;
@@ -59,7 +59,7 @@ bool LidarOdodmetry::KeyFrameCheck(const Se3& input_pose){
 
 
 void LidarOdodmetry::SaveFrame(const std::shared_ptr<PointCloud>& cloud){
-    if(Config::General::save_lo_frame){
+    if(ConfigManager::Get().General_.save_lo_frame){
         const std::string frame_path = GenerateFramePath("./LO_results",key_frame_cnt_);
         SaveCloud(cloud, frame_path,true);
     }

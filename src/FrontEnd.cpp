@@ -1,6 +1,6 @@
 #include "FrontEnd.hpp"
 #include "TicToc.hpp"
-#include "Config.hpp"
+#include "ConfigManager.hpp"
 #include "DataLoader.hpp"
 #include "ESKF.hpp"
 #include "LidarOdometry.hpp"
@@ -154,7 +154,7 @@ private:
 };
 
 
-SlamFrontEnd::Impl::Impl():lo_(Config::LidarOdometry::ndt_resolution),data_loader_(Config::DataLoader::ros_bag_path){
+SlamFrontEnd::Impl::Impl():lo_(ConfigManager::Get().LidarOdometry_.ndt_resolution),data_loader_(ConfigManager::Get().DataLoader_.ros_bag_path){
     // bind the callback function
     data_loader_.SetLidarCallback(
         [this](std::shared_ptr<PointCloud> lidar_ptr){
@@ -262,13 +262,13 @@ void SlamFrontEnd::Impl::MonitorStatus(){
 
         if(!finish_data_loading_.load()){
             if(data_loader_.HoldStatus()){
-                if(cloud_pq_size_ < Config::FrontEnd::lidar_buffer_lower_capacity ){
+                if(cloud_pq_size_ < ConfigManager::Get().FrontEnd_.lidar_buffer_lower_capacity ){
                     std::cout<<"Resume the data loader!" <<std::endl;
                     data_loader_.Resume();
                 
                 }
             }else{
-                if(cloud_pq_size_ > Config::FrontEnd::lidar_buffer_upper_capacity){
+                if(cloud_pq_size_ > ConfigManager::Get().FrontEnd_.lidar_buffer_upper_capacity){
                     std::cout<<"Pause the data loader!" <<std::endl;
                     data_loader_.Pause();
                 }
@@ -434,15 +434,15 @@ void SlamFrontEnd::Impl::PointCloudDownSample(){
 }
 
 std::string SlamFrontEnd::Impl::SaveLIOFrame(Se3& global_pose,const std::shared_ptr<PointCloud>& cloud, const int frame_id){
-    if(Config::General::save_lio_frame){
+    if(ConfigManager::Get().General_.save_lio_frame){
         std::shared_ptr<PointCloud> converted_cloud;
-        if(Config::General::filter_saved_cloud){
+        if(ConfigManager::Get().General_.filter_saved_cloud){
             auto filter_cloud = ApplyRangeFilter(cloud);
             converted_cloud = ApplyTransform(global_pose,filter_cloud);
         }else{
             converted_cloud = ApplyTransform(global_pose,cloud);
         }
-        fs::path dir = Config::FrontEnd::lio_dir_path;
+        fs::path dir = ConfigManager::Get().FrontEnd_.lio_dir_path;
         if (!fs::exists(dir)) {
             if (fs::create_directory(dir)) {
                 std::cout << "Directory created\n";
@@ -451,7 +451,7 @@ std::string SlamFrontEnd::Impl::SaveLIOFrame(Se3& global_pose,const std::shared_
             }
         }
 
-        const std::string frame_path = GenerateFramePath(Config::FrontEnd::lio_dir_path,frame_id);
+        const std::string frame_path = GenerateFramePath(ConfigManager::Get().FrontEnd_.lio_dir_path,frame_id);
         SaveCloud(converted_cloud, frame_path);
         return frame_path;
     }else{

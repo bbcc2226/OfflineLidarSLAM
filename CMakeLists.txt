@@ -12,17 +12,26 @@ find_package(rosbag2_cpp REQUIRED)
 find_package(rosbag2_storage REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(nav_msgs REQUIRED)
-
+find_package(yaml-cpp REQUIRED)
 find_package(Eigen3 REQUIRED)
 find_package(TBB REQUIRED)
 find_package(PCL REQUIRED)
 
 include_directories(
   include
+  include/Config
   ${PCL_INCLUDE_DIRS}
 )
 
-# ---------------- dataloader ----------------
+add_library( Config_lib
+  include/Config/ConfigLoader.cpp
+  include/Config/ConfigManager.cpp
+)
+target_link_libraries(Config_lib yaml-cpp)
+ament_target_dependencies(Config_lib
+  yaml-cpp
+)
+
 add_library(dataloader
   src/DataLoader.cpp
 )
@@ -46,6 +55,7 @@ ament_target_dependencies(dataloader
 
 # MUST be plain signature too
 target_link_libraries(dataloader
+  Config_lib
   Eigen3::Eigen
   TBB::tbb
   ${PCL_LIBRARIES}
@@ -54,6 +64,7 @@ target_link_libraries(dataloader
 target_link_libraries(common
   Eigen3::Eigen
   TBB::tbb
+  Config_lib
   ${PCL_LIBRARIES}
 )
 
@@ -88,6 +99,7 @@ target_link_libraries(frontend
   common
   NDT_lib
   LO_lib
+  Config_lib
   Eigen3::Eigen
   TBB::tbb
   ${PCL_LIBRARIES}

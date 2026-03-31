@@ -1,5 +1,5 @@
 #include "Common.hpp"
-#include "Config.hpp"
+#include "ConfigManager.hpp"
 #include <fstream>
 #include <iostream>
 #include <iomanip>
@@ -63,7 +63,7 @@ void InplaceApplyTransform(Sophus::SE3d& T,
 
 // -------- Apply downsample filter --------
 std::shared_ptr<PointCloud> ApplyDownSampleFilter(std::shared_ptr<PointCloud> input_cloud_ptr){
-    VoxelFilter filter(Config::LidarOdometry::voxel_resolution);
+    VoxelFilter filter(ConfigManager::Get().LidarOdometry_.voxel_resolution);
     return filter.Downsample(input_cloud_ptr);
 }
 

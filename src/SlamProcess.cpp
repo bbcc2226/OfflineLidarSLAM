@@ -1,5 +1,6 @@
 #include "SlamProcess.hpp"
 #include "FrontEnd.hpp"
+#include "ConfigManager.hpp"
 #include "Common.hpp"
 #include <iostream>
 #include <iomanip>
@@ -182,7 +183,7 @@ private:
 
 
 struct SlamProcess::Impl{
-    Impl():voxel_map_(0.3){
+    Impl():voxel_map_(ConfigManager::Get().General_.map_voxel_resolution){
         slam_front_end_.SetKeyFrameCB([this](std::shared_ptr<KeyFrame> key_frame_ptr){
 
             std::cout<<std::setprecision(15)<<"!!!!!!keyframe :"<<key_frame_ptr->timestamp_<<"\n";   

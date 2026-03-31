@@ -4,7 +4,6 @@
 #include "NDT_INC.hpp"
 #include "Common.hpp"
 #include "VoxelFilter.hpp"
-#include "Config.hpp"
 #include <cmath>
 #include <deque>
 

@@ -1,5 +1,5 @@
 #include "ESKF.hpp"
-#include "Config.hpp"
+#include "ConfigManager.hpp"
 #include <iostream>
 #include <Eigen/Dense>
 
@@ -51,10 +51,10 @@ struct ESKF::Impl{
 
 ESKF::Impl::Impl(){
     // inital the process noise in prediction step
-    Q_.block<3, 3>(3, 3) = Mat3::Identity() * Config::ESKF::process_vel_noise;
-    Q_.block<3, 3>(6, 6) = Mat3::Identity() * Config::ESKF::process_rot_noise;
-    Q_.block<3, 3>(9, 9) = Mat3::Identity() * Config::ESKF::process_ba_noise;
-    Q_.block<3, 3>(12, 12) = Mat3::Identity() * Config::ESKF::process_bg_noise;
+    Q_.block<3, 3>(3, 3) = Mat3::Identity() * ConfigManager::Get().ESKF_.process_vel_noise;
+    Q_.block<3, 3>(6, 6) = Mat3::Identity() * ConfigManager::Get().ESKF_.process_rot_noise;
+    Q_.block<3, 3>(9, 9) = Mat3::Identity() * ConfigManager::Get().ESKF_.process_ba_noise;
+    Q_.block<3, 3>(12, 12) = Mat3::Identity() * ConfigManager::Get().ESKF_.process_bg_noise;
 
 }
 
@@ -115,8 +115,8 @@ void ESKF::Impl::MeasurementUpdate(const Sophus::SE3d& T_meas,const double input
     Eigen::Matrix<double, 6, 6> R = Eigen::Matrix<double, 6, 6>::Zero();
     H.block<3, 3>(0, 0) = Mat3::Identity();
     H.block<3, 3>(3, 6) = Mat3::Identity();
-    R.block<3, 3>(0, 0) = Mat3::Identity() * Config::ESKF::measurement_pos_noise;
-    R.block<3, 3>(3, 3) = Mat3::Identity() * Config::ESKF::measurement_rot_noise;
+    R.block<3, 3>(0, 0) = Mat3::Identity() * ConfigManager::Get().ESKF_.measurement_pos_noise;
+    R.block<3, 3>(3, 3) = Mat3::Identity() * ConfigManager::Get().ESKF_.measurement_rot_noise;
 
     Sophus::SE3d T_hat(r_, p_);
 
