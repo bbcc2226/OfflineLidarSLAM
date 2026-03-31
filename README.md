@@ -19,33 +19,36 @@ This project implements a complete SLAM pipeline that includes:
 ```
 offline_lidar_slam/
 ├── include/
-│   ├── Common.hpp              # Common utilities and functions
-│   ├── Config.hpp              # Configuration parameters
-│   ├── DataLoader.hpp          # ROS2 bag data loading interface
-│   ├── DataType.hpp            # Custom data types (KeyFrame, IMUdata, etc.)
-│   ├── ESKF.hpp                # Error State Kalman Filter implementation
-│   ├── FrontEnd.hpp            # Frontend SLAM processing
-│   ├── GeoConverter.hpp         # Geographic coordinate conversion
-│   ├── LidarOdometry.hpp        # LiDAR odometry estimation
-│   ├── NDT_INC.hpp              # NDT algorithm implementation
-│   ├── SlamProcess.hpp          # Main SLAM process orchestrator
-│   ├── TicToc.hpp               # Timing utilities
-│   ├── VoxelFilter.hpp          # Point cloud voxel filtering
-│   └── sophus/                  # Sophus library for SE3 transformations
+│   ├── Config/
+│   │   └── Config.yaml          # Configuration parameters (YAML format)
+│   ├── Common.hpp               # Common utilities and functions
+│   ├── Config.hpp               # Configuration parameters (C++ header)
+│   ├── DataLoader.hpp           # ROS2 bag data loading interface
+│   ├── DataType.hpp             # Custom data types (KeyFrame, IMUdata, etc.)
+│   ├── ESKF.hpp                 # Error State Kalman Filter implementation
+│   ├── FrontEnd.hpp             # Frontend SLAM processing
+│   ├── GeoConverter.hpp          # Geographic coordinate conversion
+│   ├── LidarOdometry.hpp         # LiDAR odometry estimation
+│   ├── NDT_INC.hpp               # NDT algorithm implementation
+│   ├── SlamProcess.hpp           # Main SLAM process orchestrator
+│   ├── TicToc.hpp                # Timing utilities
+│   ├── VoxelFilter.hpp           # Point cloud voxel filtering
+│   └── sophus/                   # Sophus library for SE3 transformations
 ├── src/
 │   ├── Common.cpp
-│   ├── DataLoader.cpp           # Loads sensor data from ROS2 bags
-│   ├── ESKF.cpp                 # Kalman filter for state estimation
-│   ├── FrontEnd.cpp             # Frontend processing pipeline
+│   ├── DataLoader.cpp            # Loads sensor data from ROS2 bags
+│   ├── ESKF.cpp                  # Kalman filter for state estimation
+│   ├── FrontEnd.cpp              # Frontend processing pipeline
 │   ├── GeoConverter.cpp
-│   ├── LidarOdometry.cpp        # NDT-based odometry estimation
-│   ├── NDT_INC.cpp              # NDT point cloud registration
-│   ├── SlamProcess.cpp          # Main SLAM orchestration
+│   ├── LidarOdometry.cpp         # NDT-based odometry estimation
+│   ├── NDT_INC.cpp               # NDT point cloud registration
+│   ├── SlamProcess.cpp           # Main SLAM orchestration
+│   └── VoxelSurfelMap.cpp        # Voxelized map management
 ├── script/
 │   └── kitti_unsynced_ros2bag.py # Utility for dataset conversion
-├── test/                         # Unit tests
-├── CMakeLists.txt               # Build configuration
-└── package.xml                  # ROS2 package metadata
+├── test/                          # Unit tests
+├── CMakeLists.txt                # Build configuration
+└── package.xml                   # ROS2 package metadata
 ```
 
 ## Key Components
@@ -122,7 +125,9 @@ colcon build --packages-select offline_lidar_slam
    slam.Join();  // Wait for completion
    ```
 
-3. **Access Results**: Map and vehicle trajectory are generated during processing
+3. **Configure Parameters**: Edit [include/Config/Config.yaml](include/Config/Config.yaml) to adjust algorithm parameters for your dataset
+
+4. **Access Results**: Map and vehicle trajectory are generated during processing in `./LIO_results`
 
 ### Supported Input Formats
 
@@ -134,12 +139,7 @@ colcon build --packages-select offline_lidar_slam
 
 ## Configuration
 
-Key parameters (in [Config.hpp](include/Config.hpp)):
-
-- `NDT_RESOLUTION`: Resolution for NDT voxelization
-- `VOXEL_SIZE`: Map voxel size for efficiency
-- `KEYFRAME_THRESHOLD`: Motion threshold for keyframe selection
-- `IMU_QUEUE_SIZE`: IMU message buffer size
+Configuration is managed through [include/Config/Config.yaml](include/Config/Config.yaml). Parameters include ESKF noise settings, buffer capacities, voxel resolutions, data paths, and map generation options.
 
 ## Output
 
