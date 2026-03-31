@@ -22,7 +22,6 @@ offline_lidar_slam/
 │   ├── Config/
 │   │   └── Config.yaml          # Configuration parameters (YAML format)
 │   ├── Common.hpp               # Common utilities and functions
-│   ├── Config.hpp               # Configuration parameters (C++ header)
 │   ├── DataLoader.hpp           # ROS2 bag data loading interface
 │   ├── DataType.hpp             # Custom data types (KeyFrame, IMUdata, etc.)
 │   ├── ESKF.hpp                 # Error State Kalman Filter implementation
