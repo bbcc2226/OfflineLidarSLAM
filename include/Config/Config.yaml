@@ -37,3 +37,10 @@ General:
   save_lo_frame: false
   save_lio_frame: true
   filter_saved_cloud: true
+
+Optimizer:
+  yaw_edge_weight: 1.0
+  lio_edge_weight: 100.0
+  local_optimization_widnow_size: 30
+  min_keyframe_num_for_optimization: 10
+  iterations: 20
