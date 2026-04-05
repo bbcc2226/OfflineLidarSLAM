@@ -39,8 +39,9 @@ General:
   filter_saved_cloud: true
 
 Optimizer:
-  yaw_edge_weight: 1.0
-  lio_edge_weight: 100.0
-  local_optimization_widnow_size: 30
-  min_keyframe_num_for_optimization: 10
+  gps_edge_weight: 0.002
+  yaw_edge_weight: 50.0
+  lio_edge_weight: 200.0
+  local_optimization_widnow_size: 7
+  min_keyframe_num_for_optimization: 5
   iterations: 20
