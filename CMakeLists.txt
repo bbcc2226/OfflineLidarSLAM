@@ -16,6 +16,8 @@ find_package(yaml-cpp REQUIRED)
 find_package(Eigen3 REQUIRED)
 find_package(TBB REQUIRED)
 find_package(PCL REQUIRED)
+find_package(g2o REQUIRED)
+find_package(fmt REQUIRED)
 
 include_directories(
   include
@@ -84,6 +86,7 @@ add_library(frontend
 )
 
 add_library(slam_process
+  src/Optimizer.cpp
   src/SlamProcess.cpp
 )
 
@@ -112,7 +115,7 @@ ament_target_dependencies(slam_process
 )
 
 target_link_libraries(slam_process
-  frontend dataloader common Eigen3::Eigen TBB::tbb ${PCL_LIBRARIES}
+  frontend dataloader common Eigen3::Eigen TBB::tbb ${PCL_LIBRARIES} g2o_core g2o_stuff g2o_types_slam3d fmt::fmt
 )
 
 # ---------------- Tests ----------------

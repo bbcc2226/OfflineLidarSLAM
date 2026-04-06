@@ -106,7 +106,7 @@ Se3 NDT_INC::Align(std::shared_ptr<PointCloud> input_scan_ptr,const Se3& init_po
 
         // --- 3. Solve for update ---
         Eigen::Matrix<double,6,1> dx = H.ldlt().solve(b);
-        std::cout << "Iter " << iter << ", |dx| = " << dx.norm() << std::endl;
+        //std::cout << "Iter " << iter << ", |dx| = " << dx.norm() << std::endl;
         if (dx.norm() < 0.01) break;
 
         // Apply Left Update

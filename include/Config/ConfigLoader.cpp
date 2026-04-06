@@ -81,7 +81,6 @@ Config ConfigLoader::Load(const std::string& file_path) {
     if(root["Optimizer"]){
         auto optimizer = root["Optimizer"];
         cfg.Optimizer_.gps_edge_weight = getOrDefault(optimizer, "gps_edge_weight", cfg.Optimizer_.gps_edge_weight);
-        cfg.Optimizer_.yaw_edge_weight = getOrDefault(optimizer, "yaw_edge_weight", cfg.Optimizer_.yaw_edge_weight);
         cfg.Optimizer_.lio_edge_weight = getOrDefault(optimizer, "lio_edge_weight", cfg.Optimizer_.lio_edge_weight);
         cfg.Optimizer_.local_optimization_widnow_size = getOrDefault(optimizer, "local_optimization_widnow_size", cfg.Optimizer_.local_optimization_widnow_size);
         cfg.Optimizer_.min_keyframe_num_for_optimization = getOrDefault(optimizer, "min_keyframe_num_for_optimization", cfg.Optimizer_.min_keyframe_num_for_optimization);

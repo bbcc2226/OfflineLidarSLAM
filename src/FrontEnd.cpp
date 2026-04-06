@@ -20,23 +20,27 @@
 namespace fs = std::filesystem;
 
 struct RTKYawAlignment{
-    std::vector<Vec2> rtk_pos_list_;
-    std::vector<Vec2> lio_pos_list_;
-    bool finished_ {false};
+    std::deque<Vec2> rtk_pos_list_;
+    std::deque<Vec2> lio_pos_list_;
+    bool converged {false};
     // rotate from ENU to LIO
     double yaw_rad_ {0.0};
     RTKYawAlignment() = default;
+
     double NormalizeAngle(double a) {
         while (a > M_PI) a -= 2.0 * M_PI;
         while (a < -M_PI) a += 2.0 * M_PI;
         return a;
     }
+
     void PushPos(const Vec2& rtk_pos, const Vec2& lio_pos){
-        if(!finished_){
-            rtk_pos_list_.push_back(rtk_pos);
-            lio_pos_list_.push_back(lio_pos);
-            TryEstimate();
+        if(converged){
+            return;
         }
+        rtk_pos_list_.push_back(rtk_pos);
+        lio_pos_list_.push_back(lio_pos);
+        TryEstimate();
+        
     }
 
     void TryEstimate(){
@@ -44,7 +48,7 @@ struct RTKYawAlignment{
             throw std::runtime_error("Invalid input size");
         }
         const double min_motion = 0.2;
-        if(lio_pos_list_.size() == 10){
+        if(lio_pos_list_.size() == 50){
             double sum_sin = 0.0;
             double sum_cos = 0.0;
             int valid_cnt = 0;
@@ -71,13 +75,13 @@ struct RTKYawAlignment{
 
             if(valid_cnt > 5){
                 yaw_rad_ = -std::atan2(sum_sin,sum_cos);
-                finished_  = true;
+                converged = true;
             }
         }
     }
 
     bool GetValid() const {
-        return finished_;
+        return converged;
     }
 
 };
@@ -180,7 +184,6 @@ SlamFrontEnd::Impl::Impl():lo_(ConfigManager::Get().LidarOdometry_.ndt_resolutio
 
 }
 
-
 void SlamFrontEnd::Impl::Start(){
     // start data loader
     data_loader_.Start();
@@ -276,8 +279,7 @@ void SlamFrontEnd::Impl::MonitorStatus(){
         }
 
         {
-            std::lock_guard<std::mutex>lock(lidar_process_mtx_);
-            std::cout<<"domwsample pq size"<<cloud_pq_.size()<<" "<<cloud_pq_size_<<"\n"; 
+            std::lock_guard<std::mutex>lock(lidar_process_mtx_); 
             if(cloud_pq_.size() == 0 && finish_data_loading_ && lidar_buffer_size == 0){
                 std::cout<<"set the front flag stop to True because tasks are finished !\n";
                 stop_ = true;
@@ -334,8 +336,8 @@ void SlamFrontEnd::Impl::ProcessSensorData(){
             }
 
         }
-
-        if(curr_comb.frame_id_ > 0 && gps_wait_for_processing.size() > 0){
+        // skip the first frame to avoidsome bad begining logs
+        if(curr_comb.frame_id_ > 0 && gps_wait_for_processing.size() > 0 && curr_comb.frame_id_ > 1){
             // has a valid lidar scan 
             Se3 pred_state;
             // check if first Lidar frame been recived and if the 'global' frame get set
@@ -345,7 +347,6 @@ void SlamFrontEnd::Impl::ProcessSensorData(){
                     state_estimator_.Prediction(curr_imu);
                 }
                 pred_state = state_estimator_.GetLocalizationOutput();
-                std::cout<<"prediction: "<<pred_state.matrix() <<"\n";
             }
             // query the synced gps for late backend RTK optimization
             auto matched_gps = gps_wait_for_processing.back();
@@ -355,25 +356,32 @@ void SlamFrontEnd::Impl::ProcessSensorData(){
             // perform the LO to estimate the pse measurement from Lidar scan
             TicToc timer;
             timer.tic();
-            std::pair<bool,Se3> est_pose = lo_.AddCloud(curr_comb.filtered_cloud_,curr_comb.raw_cloud_,pred_state,true);
+            std::pair<int,Se3> est_pose = lo_.AddCloud(curr_comb.filtered_cloud_,curr_comb.raw_cloud_,pred_state,true);
             timer.toc("NDT processing time is: ");
             // measurement update with Lo results and ESKF
             state_estimator_.MeasurementUpdateLidar(est_pose.second,curr_comb.timestamp_);
             std::cout<<"Estimation : "<<est_pose.second.matrix() <<"\n";
             // check if current lidar scan is the key frame from LO processing
-            const bool is_keyframe = est_pose.first;
+            const bool is_keyframe = est_pose.first >= 0 ? true : false;
+            
             if(is_keyframe){
+                timer.tic();
                 Se3 curr_est_pose = state_estimator_.GetLocalizationOutput();
                 std::string keyframe_path = SaveLIOFrame(curr_est_pose,curr_comb.raw_cloud_,curr_comb.frame_id_);
+                timer.toc("Saving LIO frame time is: ");
+                timer.tic();
                 if(kf_cb_){
                     std::shared_ptr<KeyFrame> curr_key_frame_ptr = std::make_shared<KeyFrame>();
+                    curr_key_frame_ptr->key_frame_id_ = est_pose.first;
                     curr_key_frame_ptr->timestamp_ = curr_comb.timestamp_;
                     curr_key_frame_ptr->saved_frame_path_ = keyframe_path;
-                    curr_key_frame_ptr->valid_rtk_ = true;
+                    curr_key_frame_ptr->valid_rtk_ = rtk_align_yaw_.GetValid();
                     curr_key_frame_ptr->lio_pose_ = curr_est_pose;
                     curr_key_frame_ptr->rtk_pos_ = gps_coordinate;
+                    curr_key_frame_ptr->rtk_align_yaw_ = rtk_align_yaw_.yaw_rad_;
                     kf_cb_(curr_key_frame_ptr);
                 }
+                timer.toc("Key frame callback time is: ");
             }
             // for the RTK ENu frame yaw alignment with 'global' frame
             rtk_align_yaw_.PushPos(gps_coordinate.head<2>(),est_pose.second.translation().head<2>());
@@ -381,8 +389,7 @@ void SlamFrontEnd::Impl::ProcessSensorData(){
                 std::cout<<"rtk yaw alignment: "<<rtk_align_yaw_.yaw_rad_ / M_PI * 180.0 <<"\n";
                 Eigen::AngleAxisd yaw_rot(rtk_align_yaw_.yaw_rad_, Eigen::Vector3d::UnitZ());
                 auto corrected_gps_pos = yaw_rot * gps_coordinate;
-
-                std::cout<< corrected_gps_pos <<"\n";
+                std::cout<<gps_coordinate<<" "<<corrected_gps_pos <<"\n";
             }
             // else{
             //     // correction angle is not ready and need to push to invalid key frame pool and correct later 
@@ -435,13 +442,14 @@ void SlamFrontEnd::Impl::PointCloudDownSample(){
 
 std::string SlamFrontEnd::Impl::SaveLIOFrame(Se3& global_pose,const std::shared_ptr<PointCloud>& cloud, const int frame_id){
     if(ConfigManager::Get().General_.save_lio_frame){
-        std::shared_ptr<PointCloud> converted_cloud;
+        std::shared_ptr<PointCloud> saved_cloud;
         if(ConfigManager::Get().General_.filter_saved_cloud){
-            auto filter_cloud = ApplyRangeFilter(cloud);
-            converted_cloud = ApplyTransform(global_pose,filter_cloud);
-        }else{
-            converted_cloud = ApplyTransform(global_pose,cloud);
+            saved_cloud = ApplyRangeFilter(cloud);
+            //converted_cloud = ApplyTransform(global_pose,filter_cloud);
         }
+        // else{
+        //     converted_cloud = ApplyTransform(global_pose,cloud);
+        // }
         fs::path dir = ConfigManager::Get().FrontEnd_.lio_dir_path;
         if (!fs::exists(dir)) {
             if (fs::create_directory(dir)) {
@@ -452,7 +460,7 @@ std::string SlamFrontEnd::Impl::SaveLIOFrame(Se3& global_pose,const std::shared_
         }
 
         const std::string frame_path = GenerateFramePath(ConfigManager::Get().FrontEnd_.lio_dir_path,frame_id);
-        SaveCloud(converted_cloud, frame_path);
+        SaveCloud(saved_cloud, frame_path);
         return frame_path;
     }else{
         return "";

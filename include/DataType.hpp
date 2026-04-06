@@ -111,11 +111,13 @@ struct PointcloudComb{
 };
 
 struct KeyFrame{
+    int key_frame_id_{-1};
     double timestamp_{0.0};
     std::string saved_frame_path_;
     bool valid_rtk_{false};
     Vec3 rtk_pos_;
     Se3 lio_pose_;
+    double rtk_align_yaw_{0.0};
 };
 
 
