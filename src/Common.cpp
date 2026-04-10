@@ -68,13 +68,12 @@ std::shared_ptr<PointCloud> ApplyDownSampleFilter(std::shared_ptr<PointCloud> in
 }
 
 std::shared_ptr<PointCloud> ApplyRangeFilter(std::shared_ptr<PointCloud> input_cloud_ptr){
-    const double x_range = 50.0;
-    const double y_range = 30.0;
-    const double z_range = 5.0;
     auto output_ptr = std::make_shared<PointCloud>();
     output_ptr->pt_list_.reserve(input_cloud_ptr->pt_list_.size() / 3);
     for (const auto& p : input_cloud_ptr->pt_list_) {
-        if(std::fabs(p[0]) > x_range || std::fabs(p[1]) > y_range || std::fabs(p[2]) > z_range){
+        if(std::fabs(p[0]) > ConfigManager::Get().LidarOdometry_.lidar_x_range 
+        || std::fabs(p[1]) > ConfigManager::Get().LidarOdometry_.lidar_y_range 
+        || std::fabs(p[2]) > ConfigManager::Get().LidarOdometry_.lidar_z_range){
             continue;
         }
         output_ptr->pt_list_.push_back(p);
@@ -151,6 +150,43 @@ bool LoadPLY(const std::string& filename,
         double x, y, z;
         fin >> x >> y >> z;
         points.emplace_back(x, y, z);
+        fin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+    }
+
+    return true;
+}
+
+
+bool LoadPLY(const std::string& filename,
+             std::shared_ptr<PointCloud>& points){
+    std::ifstream fin(filename);
+    if (!fin.is_open()) {
+        std::cerr << "Cannot open PLY file: " << filename << std::endl;
+        return false;
+    }
+
+    std::string line;
+    size_t vertex_count = 0;
+
+    while (std::getline(fin, line)) {
+        if (line.find("element vertex") != std::string::npos) {
+            vertex_count = std::stoul(line.substr(15));
+        }
+        if (line == "end_header") break;
+    }
+
+    if (vertex_count == 0) {
+        std::cerr << "Invalid PLY: vertex count = 0\n";
+        return false;
+    }
+
+    points->pt_list_.clear();
+    points->pt_list_.reserve(vertex_count);
+
+    for (size_t i = 0; i < vertex_count; ++i) {
+        double x, y, z;
+        fin >> x >> y >> z;
+        points->pt_list_.emplace_back(x, y, z);
         fin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
     }
 
