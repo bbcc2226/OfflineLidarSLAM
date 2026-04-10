@@ -2,14 +2,15 @@
 #define __VOXELDOWNSAMPLE__
 
 #include "DataType.hpp"
+#include "ConfigManager.hpp"
 #include <memory>
 
 class VoxelFilter{
 private:
     double resolution_;
-    double x_range_ {40.0};
-    double y_range_ {30.0};
-    double z_range_ {20.0};
+    double x_range_ {ConfigManager::Get().LidarOdometry_.lidar_x_range};
+    double y_range_ {ConfigManager::Get().LidarOdometry_.lidar_y_range};
+    double z_range_ {ConfigManager::Get().LidarOdometry_.lidar_z_range};
     struct Accumulator {
         Eigen::Vector3d sum = Eigen::Vector3d::Zero();
         int count = 0;
