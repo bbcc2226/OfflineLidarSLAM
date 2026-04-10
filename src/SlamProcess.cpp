@@ -66,13 +66,53 @@ public:
         cloud.reserve(voxel_map_.size());
 
         for (const auto& kv : voxel_map_) {
-            if(kv.second.count < 15) continue;
+            if(kv.second.count < ConfigManager::Get().General_.num_pts_threshold_for_viz) continue;
             cloud.push_back(kv.second.Centroid());
         }
 
         return {timestamp_, cloud};
     }
+    void RemoveSparseVoxels(int min_neighbors = 4) {
+        std::lock_guard<std::mutex> lock(cloud_mtx_);
+        std::vector<VoxelKey> voxels_to_remove;
 
+        for (const auto& kv : voxel_map_) {
+            const VoxelKey& key = kv.first;
+
+            // skip voxels that don't meet visualization threshold anyway
+            if (kv.second.count < ConfigManager::Get().General_.num_pts_threshold_for_viz) continue;
+
+            int neighbor_count = 0;
+
+            // check 26 neighbors
+            for (int dx = -1; dx <= 1; ++dx) {
+                for (int dy = -1; dy <= 1; ++dy) {
+                    for (int dz = -1; dz <= 1; ++dz) {
+                        if (dx == 0 && dy == 0 && dz == 0) continue;
+
+                        VoxelKey neighbor_key{key.x_ + dx, key.y_ + dy, key.z_ + dz};
+                        if (voxel_map_.find(neighbor_key) != voxel_map_.end()) {
+                            ++neighbor_count;
+                        }
+                    }
+                }
+            }
+
+            if (neighbor_count < min_neighbors) {
+                voxels_to_remove.push_back(key);
+            }
+        }
+
+        // remove sparse voxels
+        for (const auto& key : voxels_to_remove) {
+            voxel_map_.erase(key);
+        }
+
+        if (!voxels_to_remove.empty()) {
+            std::cout << "[VoxelizedMap] Removed " << voxels_to_remove.size()
+                      << " sparse voxels.\n";
+        }
+    }
 private:
     struct VoxelData {
         Vec3 sum = Vec3::Zero();
@@ -369,6 +409,17 @@ private:
                     const auto rot_rtk_pos = Eigen::AngleAxisd(yaw_align_rad_, Eigen::Vector3d::UnitZ()) * rtk_pos;
                     optimizer_.AddGPSEdge(active_poses[i], rot_rtk_pos);
                 }
+
+                // for(size_t i = 0; i < frame_id_collections.size()-1; ++i){
+                //     const int processing_frame_id = frame_id_collections[i];
+                //     const int next_processing_frame_id = frame_id_collections[i + 1];
+                //     const auto rot = Eigen::AngleAxisd(yaw_align_rad_, Eigen::Vector3d::UnitZ());
+                //     const auto curr_rtk_pos = rot * key_frame_info_map_[processing_frame_id]->rtk_pos_;
+                //     const auto next_rtk_pos = rot * key_frame_info_map_[next_processing_frame_id]->rtk_pos_;
+                //     const auto relative_rtk_pos = next_rtk_pos - curr_rtk_pos;
+                //     //const auto rot_relative_rtk_pos = Eigen::AngleAxisd(yaw_align_rad_, Eigen::Vector3d::UnitZ()) * relative_rtk_pos;
+                //     optimizer_.AddGPSRelativeEdge(active_poses[i+1], active_poses[i], relative_rtk_pos);
+                // }
             }else{
                 const auto pose_info = key_frame_info_map_[current_frame_id]->lio_pose_;
                 const auto rtk_pos = key_frame_info_map_[current_frame_id]->rtk_pos_;
@@ -380,8 +431,9 @@ private:
                 active_frame_ids.push_back(current_frame_id);
 
                 if (active_poses.size() >= 1) {
+                    const int prev_frame_id = active_frame_ids[active_frame_ids.size() - 2];
                     auto curr_pose = key_frame_info_map_[current_frame_id]->lio_pose_;
-                    auto pose_prev = key_frame_info_map_[frame_id_collections[frame_id_collections.size() - 2 ]]->lio_pose_;
+                    auto pose_prev = key_frame_info_map_[prev_frame_id]->lio_pose_;
                     auto relative_pose = pose_prev.inverse() * curr_pose;
                     Eigen::Vector3d t = relative_pose.translation();
                     Eigen::Quaterniond q(relative_pose.rotationMatrix());
@@ -389,12 +441,24 @@ private:
                     auto v_prev = active_poses[active_poses.size() - 2]; 
                     auto v_new = active_poses.back();  
                     optimizer_.AddLIOEdge(v_prev, v_new, relative_pose_g2o);
+
+                    // const auto rot = Eigen::AngleAxisd(yaw_align_rad_, Eigen::Vector3d::UnitZ());
+                    // const auto curr_rtk_pos = rot *key_frame_info_map_[current_frame_id]->rtk_pos_;
+                    // const auto prev_rtk_pos = rot * key_frame_info_map_[prev_frame_id]->rtk_pos_;
+                    // std::cout<<"current rtk pos: "<<curr_rtk_pos.transpose() << " prev rtk pos: "<<prev_rtk_pos.transpose()<<"\n";
+                    // const auto relative_rtk_pos = curr_rtk_pos - prev_rtk_pos;
+                    
+                    // //const auto rot_relative_rtk_pos = Eigen::AngleAxisd(yaw_align_rad_, Eigen::Vector3d::UnitZ()) * relative_rtk_pos;
+                    // optimizer_.AddGPSRelativeEdge(v_new, v_prev, relative_rtk_pos);
+                    // std::cout<<"current pose: "<<pose_info.translation().transpose() << " current rtk pos: "<<curr_rtk_pos.transpose() << " prev rtk pos: "<<prev_rtk_pos.transpose()<<"\n";
+                    // std::cout<<"prev pose: "<<pose_prev.translation().transpose() << " prev rtk pos: "<<prev_rtk_pos.transpose()<<"\n";
+                    // std::cout<<"Adding relative GPS edge with RTK pos: "<<relative_rtk_pos.transpose()<<"\n";
+                    // std::cout<<"Adding LIO edge with relative pose: "<<(curr_pose.translation().transpose() - pose_prev.translation().transpose())<<"\n";
+                    // std::cout<<"Current LIO pose: "<<pose_info.translation().transpose()<<"\n";
                 }
                 const auto rot_rtk_pos = Eigen::AngleAxisd(yaw_align_rad_, Eigen::Vector3d::UnitZ()) * rtk_pos;
-                std::cout<<"Adding GPS edge with RTK pos: "<<rot_rtk_pos.transpose()<<"\n";
-                std::cout<<"Current LIO pose: "<<pose_info.translation().transpose()<<"\n";
                 optimizer_.AddGPSEdge(active_poses.back(), rot_rtk_pos);
-                //optimizer_.AddGPSEdge(active_poses.back(), yaw_node, rtk_pos);
+
             }
 
             auto UpdateVoxelMap = [&](const int key_frame_id, const Se3& optimized_pose){
@@ -403,6 +467,7 @@ private:
                 std::vector<Vec3> curr_point_cloud;
                 LoadPLY(key_frame_info->saved_frame_path_,curr_point_cloud);
                 voxel_map_.InsertCloud(curr_point_cloud,optimized_pose, key_frame_info->timestamp_,key_frame_id);
+                voxel_map_.RemoveSparseVoxels();
                 path_publisher_.AddPathPoint(optimized_pose.translation());
                 if(key_frame_id > 150 && key_frame_info_map_.find(key_frame_id - 150) != key_frame_info_map_.end()){
                     auto pop_path = key_frame_info_map_[key_frame_id - 150]->saved_frame_path_;
@@ -419,13 +484,15 @@ private:
                 auto oldest_frame_id = active_frame_ids[1];
                 const Se3 se3_pose(oldest->estimate().rotation(), oldest->estimate().translation());
                 UpdateVoxelMap(oldest_frame_id, se3_pose);
+                //UpdateVoxelMap(oldest_frame_id, key_frame_info_map_[oldest_frame_id]->lio_pose_); // use the original LIO pose for map update to avoid the map shift during optimization
+                
                 optimizer_.RemoveVertex(oldest);
                 active_poses.erase(active_poses.begin() + 1);
                 active_frame_ids.erase(active_frame_ids.begin() + 1);
             }
 
             // Optimize graph
-            optimizer_.Optimize(10); // 10 iterations per new keyframe
+            optimizer_.Optimize(ConfigManager::Get().Optimizer_.iterations); // 10 iterations per new keyframe
 
             for(size_t i = 0; i < active_poses.size(); ++i){
                 std::cout <<active_frame_ids[i]<< " Pose " << i << ": " << active_poses[i]->estimate().translation().transpose() << "\n";
