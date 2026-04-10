@@ -3,15 +3,15 @@ ESKF:
   process_rot_noise: 0.1
   process_ba_noise: 1.0e-7
   process_bg_noise: 1.0e-7
-  measurement_pos_noise: 1.0e-5
-  measurement_rot_noise: 1.0e-5
+  measurement_pos_noise: 1.0e-4
+  measurement_rot_noise: 1.0e-4
 
 FrontEnd:
   lidar_buffer_upper_capacity: 100
   imu_buffer_upper_capacity: 2000
   gps_buffer_upper_capacity: 2000
 
-  lidar_buffer_lower_capacity: 10
+  lidar_buffer_lower_capacity: 30
   imu_buffer_lower_capacity: 200
   gps_buffer_lower_capacity: 200
 
@@ -24,8 +24,11 @@ GeoConverter:
   e2: 0.00669437999014       
 
 LidarOdometry:
-  voxel_resolution: 0.7
+  voxel_resolution: 0.6
   ndt_resolution: 2.0
+  lidar_x_range: 30.0
+  lidar_y_range: 20.0
+  lidar_z_range: 5.0
 
 DataLoader:
   remove_groud: true
@@ -33,14 +36,23 @@ DataLoader:
   ros_bag_path: "/root/ros2_ws/2011_10_03_drive_0027_bag"
 
 General:
-  map_voxel_resolution: 0.4
+  map_voxel_resolution: 0.45
+  num_pts_threshold_for_viz: 15
   save_lo_frame: false
   save_lio_frame: true
   filter_saved_cloud: true
 
+LoopClosure:
+  loop_closure_search_radius: 10.0
+  loop_closure_min_keyframe_gap: 50
+  top_k_loop_closure_candidates: 5
+  loop_closure_fitness_score_threshold: 1.0
+  skip_count_for_loop_closure_detection: 20
+
 Optimizer:
-  gps_edge_weight: 0.00001
+  gps_edge_weight: 0.000001
+  gps_relative_edge_weight: 0.00001
   lio_edge_weight: 1000.0
-  local_optimization_widnow_size: 10
+  local_optimization_widnow_size: 7
   min_keyframe_num_for_optimization: 5
-  iterations: 20
+  iterations: 10

@@ -34,6 +34,9 @@ struct GeoConverterConfig{
 struct LidarOdometryConfig{
     double voxel_resolution = 0.7;
     double ndt_resolution = 4.0;
+    double lidar_x_range = 40.0;
+    double lidar_y_range = 15.0;
+    double lidar_z_range = 5.0;
 };
 
 struct DataLoaderConfig{
@@ -45,6 +48,7 @@ struct DataLoaderConfig{
 };
 
 struct OptimizerConfig{
+    double gps_relative_edge_weight = 10.0;
     double gps_edge_weight = 1.0;
     double yaw_edge_weight = 1.0;
     double lio_edge_weight = 100.0;
@@ -53,8 +57,17 @@ struct OptimizerConfig{
     int iterations = 20;
 };
 
+struct LoopClosureConfig{
+    double loop_closure_search_radius = 10.0;
+    int loop_closure_min_keyframe_gap = 50;
+    double loop_closure_fitness_score_threshold = 0.5;
+    int top_k_loop_closure_candidates = 5;
+    int skip_count_for_loop_closure_detection = 20;
+};
+
 struct GeneralConfig{
     double map_voxel_resolution = 0.5;
+    int num_pts_threshold_for_viz = 20;
     bool save_lo_frame = false;
     bool save_lio_frame = true;
     bool filter_saved_cloud = true;
@@ -68,6 +81,7 @@ struct Config{
     DataLoaderConfig DataLoader_;
     OptimizerConfig Optimizer_;
     GeneralConfig General_;
+    LoopClosureConfig LoopClosure_;
 };
 
 
