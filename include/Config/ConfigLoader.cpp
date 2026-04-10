@@ -62,6 +62,9 @@ Config ConfigLoader::Load(const std::string& file_path) {
         auto lidar_odometry = root["LidarOdometry"];
         cfg.LidarOdometry_.voxel_resolution = getOrDefault(lidar_odometry, "voxel_resolution", cfg.LidarOdometry_.voxel_resolution);
         cfg.LidarOdometry_.ndt_resolution = getOrDefault(lidar_odometry, "ndt_resolution", cfg.LidarOdometry_.ndt_resolution);
+        cfg.LidarOdometry_.lidar_x_range = getOrDefault(lidar_odometry, "lidar_x_range", cfg.LidarOdometry_.lidar_x_range);
+        cfg.LidarOdometry_.lidar_y_range = getOrDefault(lidar_odometry, "lidar_y_range", cfg.LidarOdometry_.lidar_y_range);
+        cfg.LidarOdometry_.lidar_z_range = getOrDefault(lidar_odometry, "lidar_z_range", cfg.LidarOdometry_.lidar_z_range);
     }
 
     if(root["DataLoader"]){
@@ -77,14 +80,25 @@ Config ConfigLoader::Load(const std::string& file_path) {
         cfg.General_.save_lio_frame = getOrDefault(general, "save_lio_frame", cfg.General_.save_lio_frame);
         cfg.General_.filter_saved_cloud = getOrDefault(general, "filter_saved_cloud", cfg.General_.filter_saved_cloud);
         cfg.General_.map_voxel_resolution = getOrDefault(general, "map_voxel_resolution", cfg.General_.map_voxel_resolution);
+        cfg.General_.num_pts_threshold_for_viz = getOrDefault(general, "num_pts_threshold_for_viz", cfg.General_.num_pts_threshold_for_viz);
+
     }
     if(root["Optimizer"]){
         auto optimizer = root["Optimizer"];
         cfg.Optimizer_.gps_edge_weight = getOrDefault(optimizer, "gps_edge_weight", cfg.Optimizer_.gps_edge_weight);
+        cfg.Optimizer_.gps_relative_edge_weight = getOrDefault(optimizer, "gps_relative_edge_weight", cfg.Optimizer_.gps_relative_edge_weight);
         cfg.Optimizer_.lio_edge_weight = getOrDefault(optimizer, "lio_edge_weight", cfg.Optimizer_.lio_edge_weight);
         cfg.Optimizer_.local_optimization_widnow_size = getOrDefault(optimizer, "local_optimization_widnow_size", cfg.Optimizer_.local_optimization_widnow_size);
         cfg.Optimizer_.min_keyframe_num_for_optimization = getOrDefault(optimizer, "min_keyframe_num_for_optimization", cfg.Optimizer_.min_keyframe_num_for_optimization);
         cfg.Optimizer_.iterations = getOrDefault(optimizer, "iterations", cfg.Optimizer_.iterations);
+    }
+    if(root["LoopClosure"]){
+        auto loop_closure = root["LoopClosure"];
+        cfg.LoopClosure_.loop_closure_search_radius = getOrDefault(loop_closure, "loop_closure_search_radius", cfg.LoopClosure_.loop_closure_search_radius);
+        cfg.LoopClosure_.loop_closure_min_keyframe_gap = getOrDefault(loop_closure, "loop_closure_min_keyframe_gap", cfg.LoopClosure_.loop_closure_min_keyframe_gap);
+        cfg.LoopClosure_.loop_closure_fitness_score_threshold = getOrDefault(loop_closure, "loop_closure_fitness_score_threshold", cfg.LoopClosure_.loop_closure_fitness_score_threshold);
+        cfg.LoopClosure_.top_k_loop_closure_candidates = getOrDefault(loop_closure, "top_k_loop_closure_candidates", cfg.LoopClosure_.top_k_loop_closure_candidates);
+        cfg.LoopClosure_.skip_count_for_loop_closure_detection = getOrDefault(loop_closure, "skip_count_for_loop_closure_detection", cfg.LoopClosure_.skip_count_for_loop_closure_detection);
     }
     return cfg;
 }
