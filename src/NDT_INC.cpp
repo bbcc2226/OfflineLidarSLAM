@@ -118,6 +118,36 @@ Se3 NDT_INC::Align(std::shared_ptr<PointCloud> input_scan_ptr,const Se3& init_po
     return T;
 }
 
+double NDT_INC::ComputeFitnessScore(std::shared_ptr<PointCloud> input_scan_ptr,const Se3& pose){
+    Sophus::SE3d T = pose;
+    const size_t N = input_scan_ptr->pt_list_.size();
+    double total_score = 0.0;
+    int valid_points = 0;
+
+    for (const auto& pt : input_scan_ptr->pt_list_) {
+        Eigen::Vector3d point(pt[0], pt[1], pt[2]);
+        Eigen::Vector3d trans_p = T * point;    
+
+        const VoxelKey voxel_key = PointToKey(trans_p);
+        auto it = grids_.find(voxel_key);
+        if (it == grids_.end()) {
+            continue;
+        }       
+        const auto& voxel = it->second->second;
+        Eigen::Vector3d r = trans_p - voxel.mean_;
+        double res = r.transpose() * voxel.inv_cov_ * r;
+        if (std::isnan(res) || res > 9.21) {
+            continue;
+        }
+        total_score += res;
+        valid_points++;
+    }
+    
+    if (valid_points < 5) return std::numeric_limits<double>::max();
+
+    return total_score / valid_points;
+}
+
 void NDT_INC::UpdateVoxel(VoxelGaussian_INC& voxel_data){
     if(!initial_){
         if(voxel_data.pts_.size() > 1){

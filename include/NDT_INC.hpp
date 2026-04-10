@@ -42,6 +42,8 @@ public:
 
     Se3 Align(std::shared_ptr<PointCloud> input_scan_ptr,const Se3& init_pose, const int max_iter = 10);
 
+    double ComputeFitnessScore(std::shared_ptr<PointCloud> input_scan_ptr,const Se3& pose);
+
 private:
     const double resolution_;
     bool initial_ {false};
