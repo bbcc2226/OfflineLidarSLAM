@@ -45,4 +45,6 @@ void SaveCloud(const std::shared_ptr<PointCloud>& cloud,
 bool LoadPLY(const std::string& filename,
              std::vector<Vec3>& points);
 
+bool LoadPLY(const std::string& filename,
+             std::shared_ptr<PointCloud>& points);
 // #endif // COMMON_HPP
