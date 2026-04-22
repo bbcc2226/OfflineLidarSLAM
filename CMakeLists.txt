@@ -29,6 +29,7 @@ add_library( Config_lib
   include/Config/ConfigLoader.cpp
   include/Config/ConfigManager.cpp
 )
+
 target_link_libraries(Config_lib yaml-cpp)
 ament_target_dependencies(Config_lib
   yaml-cpp
@@ -46,6 +47,15 @@ add_library(NDT_lib
   src/NDT_INC.cpp
 )
 
+add_library( loop_closure_lib
+  src/LoopClosure.cpp
+)
+target_link_libraries(loop_closure_lib
+  common 
+  NDT_lib
+  Eigen3::Eigen
+
+)
 # ament_target_dependencies uses plain target_link_libraries internally on your system
 ament_target_dependencies(dataloader
   rclcpp
@@ -88,6 +98,7 @@ add_library(frontend
 add_library(slam_process
   src/Optimizer.cpp
   src/SlamProcess.cpp
+  src/VoxelizedMap.cpp
 )
 
 ament_target_dependencies(frontend
@@ -115,7 +126,7 @@ ament_target_dependencies(slam_process
 )
 
 target_link_libraries(slam_process
-  frontend dataloader common Eigen3::Eigen TBB::tbb ${PCL_LIBRARIES} g2o_core g2o_stuff g2o_types_slam3d fmt::fmt
+  frontend dataloader common loop_closure_lib Eigen3::Eigen TBB::tbb ${PCL_LIBRARIES} g2o_core g2o_stuff g2o_types_slam3d fmt::fmt
 )
 
 # ---------------- Tests ----------------
@@ -143,5 +154,11 @@ if(BUILD_TESTING)
   target_link_libraries(test_slam slam_process)
 
 endif()
+
+install(PROGRAMS
+  script/kitti_unsynced_ros2bag.py
+  script/cloud_publisher.py
+  DESTINATION lib/${PROJECT_NAME}
+)
 
 ament_package()
