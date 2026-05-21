@@ -82,10 +82,14 @@ target_link_libraries(common
 
 add_library(LO_lib
   src/LidarOdometry.cpp
+  src/ScanMatching.cpp
 )
 
 target_link_libraries(LO_lib
   NDT_lib
+  common
+  Eigen3::Eigen
+  ${PCL_LIBRARIES}
 )
 # ---------------- frontend ----------------
 add_library(frontend
@@ -126,7 +130,7 @@ ament_target_dependencies(slam_process
 )
 
 target_link_libraries(slam_process
-  frontend dataloader common loop_closure_lib Eigen3::Eigen TBB::tbb ${PCL_LIBRARIES} g2o_core g2o_stuff g2o_types_slam3d fmt::fmt
+  frontend dataloader common loop_closure_lib Eigen3::Eigen TBB::tbb ${PCL_LIBRARIES} g2o_core g2o_stuff g2o_types_slam3d g2o_solver_eigen fmt::fmt
 )
 
 # ---------------- Tests ----------------
@@ -146,6 +150,9 @@ if(BUILD_TESTING)
 
   ament_add_gtest(test_lo test/TestLidarOdometry.cpp)
   target_link_libraries(test_lo NDT_lib LO_lib common Eigen3::Eigen TBB::tbb ${PCL_LIBRARIES})
+
+  ament_add_gtest(test_loop_closure_ndt test/TestLoopClosureNDT.cpp)
+  target_link_libraries(test_loop_closure_ndt NDT_lib common Config_lib Eigen3::Eigen TBB::tbb ${PCL_LIBRARIES})
 
   ament_add_gtest(test_fe test/TestFrontEnd.cpp)
   target_link_libraries(test_fe frontend)
