@@ -117,6 +117,7 @@ struct KeyFrame{
     bool valid_rtk_{false};
     Vec3 rtk_pos_;
     Se3 lio_pose_;
+    std::pair<bool,Se3> optimized_pose_{false, Se3()}; 
     double rtk_align_yaw_{0.0};
 };
 

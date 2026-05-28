@@ -65,6 +65,9 @@ Config ConfigLoader::Load(const std::string& file_path) {
         cfg.LidarOdometry_.lidar_x_range = getOrDefault(lidar_odometry, "lidar_x_range", cfg.LidarOdometry_.lidar_x_range);
         cfg.LidarOdometry_.lidar_y_range = getOrDefault(lidar_odometry, "lidar_y_range", cfg.LidarOdometry_.lidar_y_range);
         cfg.LidarOdometry_.lidar_z_range = getOrDefault(lidar_odometry, "lidar_z_range", cfg.LidarOdometry_.lidar_z_range);
+        cfg.LidarOdometry_.reject_large_pose_jump = getOrDefault(lidar_odometry, "reject_large_pose_jump", cfg.LidarOdometry_.reject_large_pose_jump);
+        cfg.LidarOdometry_.max_pose_jump_translation = getOrDefault(lidar_odometry, "max_pose_jump_translation", cfg.LidarOdometry_.max_pose_jump_translation);
+        cfg.LidarOdometry_.max_pose_jump_rotation_deg = getOrDefault(lidar_odometry, "max_pose_jump_rotation_deg", cfg.LidarOdometry_.max_pose_jump_rotation_deg);
     }
 
     if(root["DataLoader"]){
@@ -81,16 +84,19 @@ Config ConfigLoader::Load(const std::string& file_path) {
         cfg.General_.filter_saved_cloud = getOrDefault(general, "filter_saved_cloud", cfg.General_.filter_saved_cloud);
         cfg.General_.map_voxel_resolution = getOrDefault(general, "map_voxel_resolution", cfg.General_.map_voxel_resolution);
         cfg.General_.num_pts_threshold_for_viz = getOrDefault(general, "num_pts_threshold_for_viz", cfg.General_.num_pts_threshold_for_viz);
-
+        cfg.General_.using_LIO_only = getOrDefault(general, "using_LIO_only", cfg.General_.using_LIO_only);
+        cfg.General_.save_loop_closure_debug_info = getOrDefault(general, "save_loop_closure_debug_info", cfg.General_.save_loop_closure_debug_info);
     }
     if(root["Optimizer"]){
         auto optimizer = root["Optimizer"];
         cfg.Optimizer_.gps_edge_weight = getOrDefault(optimizer, "gps_edge_weight", cfg.Optimizer_.gps_edge_weight);
         cfg.Optimizer_.gps_relative_edge_weight = getOrDefault(optimizer, "gps_relative_edge_weight", cfg.Optimizer_.gps_relative_edge_weight);
         cfg.Optimizer_.lio_edge_weight = getOrDefault(optimizer, "lio_edge_weight", cfg.Optimizer_.lio_edge_weight);
+        cfg.Optimizer_.loop_closure_edge_weight = getOrDefault(optimizer, "loop_closure_edge_weight", cfg.Optimizer_.loop_closure_edge_weight);
         cfg.Optimizer_.local_optimization_widnow_size = getOrDefault(optimizer, "local_optimization_widnow_size", cfg.Optimizer_.local_optimization_widnow_size);
         cfg.Optimizer_.min_keyframe_num_for_optimization = getOrDefault(optimizer, "min_keyframe_num_for_optimization", cfg.Optimizer_.min_keyframe_num_for_optimization);
-        cfg.Optimizer_.iterations = getOrDefault(optimizer, "iterations", cfg.Optimizer_.iterations);
+        cfg.Optimizer_.local_iterations = getOrDefault(optimizer, "local_iterations", cfg.Optimizer_.local_iterations);
+        cfg.Optimizer_.global_iterations = getOrDefault(optimizer, "global_iterations", cfg.Optimizer_.global_iterations);
     }
     if(root["LoopClosure"]){
         auto loop_closure = root["LoopClosure"];

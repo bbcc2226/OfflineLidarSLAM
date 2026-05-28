@@ -1,6 +1,7 @@
 #pragma once
 
 #include <vector>
+#include <unordered_map>
 #include <Eigen/Dense>
 #include "ConfigManager.hpp"
 #include "DataType.hpp"
@@ -13,10 +14,21 @@ public:
         keyframes_list_.push_back(kf);
     }
 
-    std::vector<std::pair<int,Se3>> DetectLoop();
+    std::pair<int,Se3> DetectLoop();
 
     void SetLastKFId(int last_kf_id){
         last_kf_id_ = last_kf_id;
+    }
+
+    // Update the stored optimized_pose_ for all keyframes after global optimization,
+    // so future loop closure NDT uses the correct world-frame initial guess.
+    void UpdateKeyFramePoses(const std::unordered_map<int, Se3>& id_to_pose) {
+        for (auto& kf : keyframes_list_) {
+            auto it = id_to_pose.find(kf->key_frame_id_);
+            if (it != id_to_pose.end()) {
+                kf->optimized_pose_ = {true, it->second};
+            }
+        }
     }
 
 private:
@@ -24,7 +36,8 @@ private:
     bool VerifyLoop(const std::shared_ptr<KeyFrame>& kf1, const std::shared_ptr<KeyFrame>& kf2,
                     Se3& relative_pose);
 
-
+    bool VerifyLoopSubmap(const std::shared_ptr<KeyFrame>& curr_frame, const std::vector<std::shared_ptr<KeyFrame>>& history_frames,
+                    Se3& relative_pose);
 private:
     int last_kf_id_{-1};
     std::vector<std::shared_ptr<KeyFrame>> keyframes_list_;

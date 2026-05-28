@@ -1,5 +1,28 @@
-#include "LidarOdometry.hpp"
+#include "../include/LidarOdometry.hpp"
 #include "ConfigManager.hpp"
+
+bool LidarOdodmetry::PoseJumpAccepted(const Se3& guess, const Se3& estimated_pose) const {
+    const auto& cfg = ConfigManager::Get().LidarOdometry_;
+    if (!cfg.reject_large_pose_jump) {
+        return true;
+    }
+
+    const Se3 delta = guess.inverse() * estimated_pose;
+    const double translation_jump = delta.translation().norm();
+    const double rotation_jump_deg = delta.so3().log().norm() * 180.0 / M_PI;
+    std::cout<<"Pose jump: dtrans=" << translation_jump
+             << " m, drot=" << rotation_jump_deg
+             << " deg\n";
+    if (translation_jump > cfg.max_pose_jump_translation ||
+        rotation_jump_deg > cfg.max_pose_jump_rotation_deg) {
+        std::cout << "Reject LO pose jump: dtrans=" << translation_jump
+                  << " m, drot=" << rotation_jump_deg
+                  << " deg\n";
+        return false;
+    }
+
+    return true;
+}
 
 std::pair<int,Se3> LidarOdodmetry::AddCloud(std::shared_ptr<PointCloud>& filtered_cloud_ptr, std::shared_ptr<PointCloud>& raw_cloud_ptr, const Se3& predicted_pose, bool use_lo){
     total_cnt_ += 1;
@@ -7,6 +30,7 @@ std::pair<int,Se3> LidarOdodmetry::AddCloud(std::shared_ptr<PointCloud>& filtere
         first_frame_ = false;
         last_kf_pose_ = Se3();
         ndt_inc_.AddCloud(filtered_cloud_ptr);
+        scan_matcher_.AddTargetFrame(filtered_cloud_ptr);
         frame_cnt_ += 1;
         key_frame_cnt_ += 1;
         //save the key frame to file
@@ -24,7 +48,15 @@ std::pair<int,Se3> LidarOdodmetry::AddCloud(std::shared_ptr<PointCloud>& filtere
                 guess = motion_predicted_pose;
             }
         }
-        Se3 est_pose = ndt_inc_.Align(filtered_cloud_ptr,guess);
+        Se3 est_pose = scan_matcher_.Align(filtered_cloud_ptr,
+                                          ndt_inc_,
+                                          guess);
+        const bool accepted_pose = PoseJumpAccepted(guess, est_pose);
+        if (!accepted_pose) {
+            est_pose_buffer_.push_back(guess);
+            frame_cnt_ += 1;
+            return {-1, guess};
+        }
         est_pose_buffer_.push_back(est_pose);
         frame_cnt_ += 1;
         bool key_frame_flag = false;
@@ -36,6 +68,7 @@ std::pair<int,Se3> LidarOdodmetry::AddCloud(std::shared_ptr<PointCloud>& filtere
             //std::cout<<est_pose.matrix()<<std::endl;
             std::shared_ptr<PointCloud> curr_filtered_world_cloud = ApplyTransform(est_pose,filtered_cloud_ptr);
             ndt_inc_.AddCloud(curr_filtered_world_cloud);
+            scan_matcher_.AddTargetFrame(curr_filtered_world_cloud);
             //save worl frame cloud (key frame ) to file
             std::shared_ptr<PointCloud> curr_world_cloud = ApplyTransform(est_pose,raw_cloud_ptr);
             SaveFrame(curr_world_cloud);

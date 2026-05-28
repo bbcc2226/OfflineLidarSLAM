@@ -1,24 +1,52 @@
 #include "ScanMatching.hpp"
 
 #include <cmath>
+
 #include <pcl/point_types.h>
 #include <pcl/registration/gicp.h>
 
+void CoarseToFineRegistration::AddTargetFrame(
+    const std::shared_ptr<PointCloud>& cloud) {
+
+    if (!cloud) {
+        return;
+    }
+
+    fine_target_keyframes_world_.push_back(cloud);
+    while (fine_target_keyframes_world_.size() > kFineTargetWindowSize) {
+        fine_target_keyframes_world_.pop_front();
+    }
+
+    RebuildTargetMap();
+}
+
+void CoarseToFineRegistration::RebuildTargetMap() {
+    auto rebuilt_cloud = std::make_shared<PointCloud>();
+
+    for (const auto& keyframe_cloud : fine_target_keyframes_world_) {
+        rebuilt_cloud->pt_list_.insert(rebuilt_cloud->pt_list_.end(),
+                                       keyframe_cloud->pt_list_.begin(),
+                                       keyframe_cloud->pt_list_.end());
+    }
+
+    VoxelFilter filter(ConfigManager::Get().General_.map_voxel_resolution);
+    fine_target_cloud_world_ = filter.Downsample(rebuilt_cloud, false);
+}
+
 std::shared_ptr<PointCloud> CoarseToFineRegistration::CropTargetCloud(
-    const std::shared_ptr<PointCloud>& fine_target_cloud_world,
     const Se3& coarse_pose) const {
 
     auto cropped_cloud = std::make_shared<PointCloud>();
 
-    if (!fine_target_cloud_world) {
+    if (!fine_target_cloud_world_) {
         return cropped_cloud;
     }
 
     const Eigen::Vector3d center = coarse_pose.translation();
     const double radius_sq = gicp_crop_radius_ * gicp_crop_radius_;
-    cropped_cloud->pt_list_.reserve(fine_target_cloud_world->pt_list_.size());
+    cropped_cloud->pt_list_.reserve(fine_target_cloud_world_->pt_list_.size());
 
-    for (const auto& pt : fine_target_cloud_world->pt_list_) {
+    for (const auto& pt : fine_target_cloud_world_->pt_list_) {
         const Eigen::Vector3d target_pt(pt[0], pt[1], pt[2]);
         if ((target_pt - center).squaredNorm() <= radius_sq) {
             cropped_cloud->pt_list_.push_back(pt);
@@ -53,9 +81,8 @@ CoarseToFineRegistration::ToPCLCloud(
 Se3 CoarseToFineRegistration::Align(
     const std::shared_ptr<PointCloud>& input_scan_ptr,
     NDT_INC& ndt_map,
-    const std::shared_ptr<PointCloud>& fine_target_cloud_world,
     const Se3& init_pose,
-    int ndt_max_iter) const {
+    int ndt_max_iter) {
 
     const Se3 coarse_pose =
         ndt_map.Align(input_scan_ptr,
@@ -70,14 +97,12 @@ Se3 CoarseToFineRegistration::Align(
         return coarse_pose;
     }
 
-    if (!fine_target_cloud_world ||
-        fine_target_cloud_world->pt_list_.size() < 30) {
+    if (!fine_target_cloud_world_ ||
+        fine_target_cloud_world_->pt_list_.size() < 30) {
         return coarse_pose;
     }
 
-    auto cropped_target_cloud = CropTargetCloud(
-        fine_target_cloud_world,
-        coarse_pose);
+    auto cropped_target_cloud = CropTargetCloud(coarse_pose);
 
     if (!cropped_target_cloud ||
         cropped_target_cloud->pt_list_.size() < 30) {

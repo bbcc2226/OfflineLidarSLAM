@@ -1,9 +1,9 @@
-#ifndef __NDT_LO__
-#define __NDT_LO__
+#ifndef OFFLINE_LIDAR_SLAM_LIDAR_ODOMETRY_HPP
+#define OFFLINE_LIDAR_SLAM_LIDAR_ODOMETRY_HPP
 
 #include "NDT_INC.hpp"
+#include "ScanMatching.hpp"
 #include "Common.hpp"
-#include "VoxelFilter.hpp"
 #include <cmath>
 #include <deque>
 
@@ -24,8 +24,11 @@ private:
     bool first_frame_{true};
     Se3 last_kf_pose_{Se3()};
     NDT_INC ndt_inc_;
+    CoarseToFineRegistration scan_matcher_{0.5, 5, 1e-2, 1e-2};
     std::deque<Se3> est_pose_buffer_;
     
+    bool PoseJumpAccepted(const Se3& guess, const Se3& estimated_pose) const;
+
     bool KeyFrameCheck(const Se3& input_pose);
 
     void SaveFrame(const std::shared_ptr<PointCloud>& cloud);

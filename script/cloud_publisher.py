@@ -15,7 +15,7 @@ from sensor_msgs_py import point_cloud2
 from std_msgs.msg import Header
 
 
-DEFAULT_METADATA_PATH = Path("/root/ros2_ws/build/offline_lidar_slam/LIO_results/key_frames.jsonl")
+DEFAULT_METADATA_PATH = Path("/root/ros2_ws/build/offline_lidar_slam/key_frames.jsonl")
 FRAME_A_COLOR = np.array([242, 89, 38], dtype=np.uint8)
 FRAME_B_COLOR = np.array([26, 140, 242], dtype=np.uint8)
 

@@ -37,6 +37,9 @@ struct LidarOdometryConfig{
     double lidar_x_range = 40.0;
     double lidar_y_range = 15.0;
     double lidar_z_range = 5.0;
+    bool reject_large_pose_jump = true;
+    double max_pose_jump_translation = 2.0;
+    double max_pose_jump_rotation_deg = 15.0;
 };
 
 struct DataLoaderConfig{
@@ -52,15 +55,17 @@ struct OptimizerConfig{
     double gps_edge_weight = 1.0;
     double yaw_edge_weight = 1.0;
     double lio_edge_weight = 100.0;
+    double loop_closure_edge_weight = 500.0;
     int local_optimization_widnow_size = 30;
     int min_keyframe_num_for_optimization = 10;
-    int iterations = 20;
+    int local_iterations = 20;
+    int global_iterations = 80;
 };
 
 struct LoopClosureConfig{
     double loop_closure_search_radius = 10.0;
     int loop_closure_min_keyframe_gap = 50;
-    double loop_closure_fitness_score_threshold = 0.5;
+    double loop_closure_fitness_score_threshold = 20;
     int top_k_loop_closure_candidates = 5;
     int skip_count_for_loop_closure_detection = 20;
 };
@@ -71,6 +76,8 @@ struct GeneralConfig{
     bool save_lo_frame = false;
     bool save_lio_frame = true;
     bool filter_saved_cloud = true;
+    bool using_LIO_only = false;
+    bool save_loop_closure_debug_info = true;
 };
 
 struct Config{

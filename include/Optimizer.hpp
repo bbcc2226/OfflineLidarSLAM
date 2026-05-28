@@ -1,5 +1,7 @@
 #pragma once
 
+#include "DataType.hpp"
+
 #include <g2o/core/sparse_optimizer.h>
 #include <g2o/types/slam3d/types_slam3d.h>
 #include <Eigen/Core>
@@ -31,6 +33,18 @@ public:
     bool write(std::ostream&) const override { return false; }
 };
 
+class EdgeGPSWithHeading : public g2o::BaseUnaryEdge<6, Se3, g2o::VertexSE3>{
+public:
+    EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+
+    void computeError() override;
+    //void linearizeOplus() override;
+
+    bool read(std::istream&) override { return false; }
+    bool write(std::ostream&) const override { return false; }
+};
+
+
 // --------------------
 // Graph Optimizer
 // --------------------
@@ -47,6 +61,11 @@ public:
                     g2o::VertexSE3* v2,
                     const g2o::SE3Quat& rel_pose);
 
+    // Loop closure constraint (binary SE3 edge with Huber kernel)
+    void AddLoopClosureEdge(g2o::VertexSE3* v_hist,
+                            g2o::VertexSE3* v_curr,
+                            const g2o::SE3Quat& rel_pose);
+
     // GPS constraint (NO YAW)
     void AddGPSEdge(g2o::VertexSE3* v_pose,
                     const Eigen::Vector3d& gps);
@@ -56,8 +75,14 @@ public:
                     g2o::VertexSE3* v_prev_pose,
                     const Eigen::Vector3d& gps_relative);
 
+    void AddGPSWithHeadingEdge(g2o::VertexSE3* v_pose,
+                    const Se3& gps_with_heading);
+
     // optimize
     void Optimize(int iterations = 10);
+
+    // clear all vertices and edges, reset vertex id counter
+    void Clear();
 
     // remove the vertex
     void RemoveVertex(g2o::VertexSE3* v) {

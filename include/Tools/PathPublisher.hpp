@@ -76,6 +76,47 @@ public:
         }
     }
 
+    // Rebuild the entire trajectory from a pre-sorted list of world-frame positions.
+    // Call this after loop closure to reflect the globally-corrected poses.
+    void RefreshPath(const std::vector<Vec3>& positions) {
+        lio_path_.poses.clear();
+        lio_path_.header.stamp = this->now();
+        lio_path_.header.frame_id = "map";
+        for (const auto& pos : positions) {
+            geometry_msgs::msg::PoseStamped pose;
+            pose.header.stamp = this->now();
+            pose.header.frame_id = "map";
+            pose.pose.position.x = pos.x();
+            pose.pose.position.y = pos.y();
+            pose.pose.position.z = 0.0;
+            pose.pose.orientation.w = 1.0;
+            lio_path_.poses.push_back(pose);
+        }
+        path_pub_->publish(lio_path_);
+    }
+
+    void RefreshRTKPath(const std::vector<Vec3>& positions) {
+        rtk_path_.poses.clear();
+        rtk_path_.header.stamp = this->now();
+        rtk_path_.header.frame_id = "map";
+        while (!rtk_pos_buffer_.empty()) {
+            rtk_pos_buffer_.pop();
+        }
+
+        for (const auto& pos : positions) {
+            geometry_msgs::msg::PoseStamped pose;
+            pose.header.stamp = this->now();
+            pose.header.frame_id = "map";
+            pose.pose.position.x = pos.x();
+            pose.pose.position.y = pos.y();
+            pose.pose.position.z = 0.0;
+            pose.pose.orientation.w = 1.0;
+            rtk_path_.poses.push_back(pose);
+        }
+
+        rtk_pub_->publish(rtk_path_);
+    }
+
 private:
     rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr path_pub_;
     rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr rtk_pub_;

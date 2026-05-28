@@ -356,7 +356,7 @@ void SlamFrontEnd::Impl::ProcessSensorData(){
             // perform the LO to estimate the pse measurement from Lidar scan
             TicToc timer;
             timer.tic();
-            std::pair<int,Se3> est_pose = lo_.AddCloud(curr_comb.filtered_cloud_,curr_comb.raw_cloud_,pred_state,true);
+            std::pair<int,Se3> est_pose = lo_.AddCloud(curr_comb.filtered_cloud_,curr_comb.raw_cloud_,pred_state);
             timer.toc("NDT processing time is: ");
             // measurement update with Lo results and ESKF
             state_estimator_.MeasurementUpdateLidar(est_pose.second,curr_comb.timestamp_);

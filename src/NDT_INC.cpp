@@ -14,7 +14,7 @@ void NDT_INC::AddCloud(std::shared_ptr<PointCloud> input_scan_ptr){
             data_buffer_.push_front({curr_key,new_voxel});
             grids_.insert({curr_key,data_buffer_.begin()});
 
-            if(data_buffer_.size() > 600){
+            if(data_buffer_.size() > static_cast<size_t>(max_voxels_)){
                 // too many points and need to remove the least used pt
                 grids_.erase(data_buffer_.back().first);
                 data_buffer_.pop_back();
@@ -46,7 +46,7 @@ Se3 NDT_INC::Align(std::shared_ptr<PointCloud> input_scan_ptr,const Se3& init_po
     const size_t N = input_scan_ptr->pt_list_.size();
 
     for (int iter = 0; iter < max_iter; ++iter) {
-
+        std::cout<<" Iteration " << iter << " / " << max_iter << std::endl;
         // Pre-allocate per-point containers
         std::vector<Eigen::Matrix<double,3,6>> jacobians(N);
         std::vector<Eigen::Vector3d> errors(N);
@@ -106,7 +106,7 @@ Se3 NDT_INC::Align(std::shared_ptr<PointCloud> input_scan_ptr,const Se3& init_po
 
         // --- 3. Solve for update ---
         Eigen::Matrix<double,6,1> dx = H.ldlt().solve(b);
-        //std::cout << "Iter " << iter << ", |dx| = " << dx.norm() << std::endl;
+        std::cout << "Iter " << iter << ", |dx| = " << dx.norm() << std::endl;
         if (dx.norm() < 0.01) break;
 
         // Apply Left Update
@@ -143,7 +143,7 @@ double NDT_INC::ComputeFitnessScore(std::shared_ptr<PointCloud> input_scan_ptr,c
         valid_points++;
     }
     
-    if (valid_points < 5) return std::numeric_limits<double>::max();
+    if (valid_points == 0) return std::numeric_limits<double>::max();
 
     return total_score / valid_points;
 }
@@ -162,10 +162,16 @@ void NDT_INC::UpdateVoxel(VoxelGaussian_INC& voxel_data){
         voxel_data.pts_.clear();
         return;
     }
-    if(!voxel_data.ndt_estimated_ && voxel_data.pts_.size() > 1){
-        // this voxel not updated and treated as new voxel
-        ComputeMeanAndVariance(voxel_data,voxel_data.mean_,voxel_data.cov_);
-        voxel_data.inv_cov_ = (voxel_data.cov_ + Mat3::Identity() * 1e-3).inverse();
+    if(!voxel_data.ndt_estimated_){
+        // New voxel (never estimated before) — initialize regardless of point count
+        if(voxel_data.pts_.size() > 1){
+            ComputeMeanAndVariance(voxel_data,voxel_data.mean_,voxel_data.cov_);
+            voxel_data.inv_cov_ = (voxel_data.cov_ + Mat3::Identity() * 1e-3).inverse();
+        }else{
+            // single point: use spherical covariance
+            voxel_data.mean_ = voxel_data.pts_[0];
+            voxel_data.inv_cov_ = Mat3::Identity() * 1e2;
+        }
         voxel_data.ndt_estimated_ = true;
         voxel_data.pts_.clear();
     }else if(voxel_data.ndt_estimated_ && voxel_data.pts_.size() > 3){

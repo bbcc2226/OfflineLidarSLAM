@@ -1,5 +1,17 @@
 #!/usr/bin/env python3
-"""Publish the loop-closure submap and aligned current scan saved by VerifyLoopSubmap."""
+"""Publish the loop-closure submap and current scan(s) saved by VerifyLoopSubmap.
+
+New files saved by VerifyLoopSubmap (requires save_loop_closure_debug_info: true):
+  /tmp/loop_submap_kf<ID>.ply        — history submap (NDT target)       [blue]
+  /tmp/loop_curr_raw_kf<ID>.ply      — raw current scan before NDT       [red]
+  /tmp/loop_curr_aligned_kf<ID>.ply  — current scan after NDT alignment  [orange]
+  /tmp/loop_init_guess_kf<ID>.txt    — initial guess pose (tx ty tz qw qx qy qz)
+
+Usage:
+  python3 submap_publisher.py <kf_id>                # submap + aligned scan
+  python3 submap_publisher.py <kf_id> --show-raw     # adds raw pre-NDT scan (red)
+  python3 submap_publisher.py <kf_id> --raw-only     # submap + raw scan only (skip aligned)
+"""
 
 import argparse
 import struct
@@ -16,8 +28,9 @@ from std_msgs.msg import Header
 
 DEFAULT_KF_ID = None  # set via --kf-id or override --submap/--curr directly
 
-SUBMAP_COLOR = np.array([26, 140, 242], dtype=np.uint8)   # blue  — history submap
-CURR_COLOR   = np.array([242, 89,  38], dtype=np.uint8)   # orange — aligned current scan
+SUBMAP_COLOR  = np.array([26,  140, 242], dtype=np.uint8)  # blue   — history submap
+CURR_COLOR    = np.array([242,  89,  38], dtype=np.uint8)  # orange — aligned current scan
+RAW_COLOR     = np.array([220,  30,  30], dtype=np.uint8)  # red    — raw pre-NDT scan
 
 
 def parse_args() -> argparse.Namespace:
@@ -30,6 +43,14 @@ def parse_args() -> argparse.Namespace:
                         help="Path to submap PLY (overrides kf_id-derived path).")
     parser.add_argument("--curr",      type=Path, default=None,
                         help="Path to aligned current scan PLY (overrides kf_id-derived path).")
+    parser.add_argument("--raw",       type=Path, default=None,
+                        help="Path to raw (pre-NDT) current scan PLY (overrides kf_id-derived path).")
+    parser.add_argument("--show-raw",  action="store_true",
+                        help="Also publish the raw pre-NDT current scan (red) alongside the aligned one.")
+    parser.add_argument("--raw-only",  action="store_true",
+                        help="Show submap + raw pre-NDT scan; skip the post-alignment scan.")
+    parser.add_argument("--print-init-guess", action="store_true",
+                        help="Print the saved initial NDT guess pose and exit.")
     parser.add_argument("--topic",     default="/loop_closure_cloud",
                         help="PointCloud2 topic to publish.")
     parser.add_argument("--frame-id",  default="map",
@@ -96,17 +117,49 @@ def resolve_paths(args: argparse.Namespace) -> argparse.Namespace:
             args.submap = Path(f"/tmp/loop_submap_kf{args.kf_id}.ply")
         if args.curr is None:
             args.curr = Path(f"/tmp/loop_curr_aligned_kf{args.kf_id}.ply")
+        if args.raw is None:
+            args.raw = Path(f"/tmp/loop_curr_raw_kf{args.kf_id}.ply")
     if args.submap is None or args.curr is None:
         raise ValueError("Provide a keyframe ID (positional) or both --submap and --curr.")
     return args
 
 
+def print_init_guess(kf_id: int) -> None:
+    path = Path(f"/tmp/loop_init_guess_kf{kf_id}.txt")
+    if not path.is_file():
+        print(f"Init guess file not found: {path}")
+        return
+    values = path.read_text().split()
+    if len(values) >= 7:
+        tx, ty, tz, qw, qx, qy, qz = (float(v) for v in values[:7])
+        print(f"Initial NDT guess for kf {kf_id}:")
+        print(f"  translation : ({tx:.4f}, {ty:.4f}, {tz:.4f})")
+        print(f"  quaternion  : w={qw:.6f}  x={qx:.6f}  y={qy:.6f}  z={qz:.6f}")
+    else:
+        print(f"Unexpected format in {path}: {path.read_text().strip()}")
+
+
 def load_clouds(args: argparse.Namespace) -> np.ndarray:
+    # Decide which clouds to show
+    entries = [(args.submap, SUBMAP_COLOR, "submap")]
+    if args.raw_only:
+        if args.raw and args.raw.is_file():
+            entries.append((args.raw, RAW_COLOR, "raw scan"))
+        else:
+            print(f"WARNING: raw scan not found at {args.raw}, falling back to aligned scan")
+            entries.append((args.curr, CURR_COLOR, "aligned scan"))
+    else:
+        entries.append((args.curr, CURR_COLOR, "aligned scan"))
+        if args.show_raw and args.raw and args.raw.is_file():
+            entries.append((args.raw, RAW_COLOR, "raw scan"))
+        elif args.show_raw:
+            print(f"WARNING: raw scan not found at {args.raw}, --show-raw ignored")
+
+    n = len(entries)
+    budgets = [args.max_points * 2 // 3] + [args.max_points // (3 * max(n - 1, 1))] * (n - 1)
+
     clouds = []
-    for path, color, label, budget in (
-        (args.submap, SUBMAP_COLOR, "submap",       args.max_points * 2 // 3),
-        (args.curr,   CURR_COLOR,   "aligned scan",  args.max_points // 3),
-    ):
+    for (path, color, label), budget in zip(entries, budgets):
         if not path.is_file():
             raise FileNotFoundError(f"PLY not found for {label}: {path}")
         pts = read_ascii_ply_vertices(path)
@@ -147,6 +200,14 @@ class SubmapPublisher(Node):
 
 def main() -> int:
     args = resolve_paths(parse_args())
+
+    if args.print_init_guess:
+        if args.kf_id is not None:
+            print_init_guess(args.kf_id)
+        else:
+            print("--print-init-guess requires a keyframe ID.")
+        return 0
+
     cloud_points = load_clouds(args)
     print(f"Publishing {cloud_points.shape[0]} points to {args.topic}")
     print("In RViz2, set the PointCloud2 display Color Transformer to RGB8.")

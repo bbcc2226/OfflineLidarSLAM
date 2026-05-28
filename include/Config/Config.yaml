@@ -24,11 +24,14 @@ GeoConverter:
   e2: 0.00669437999014       
 
 LidarOdometry:
-  voxel_resolution: 0.6
-  ndt_resolution: 2.0
-  lidar_x_range: 30.0
+  voxel_resolution: 0.8
+  ndt_resolution: 3.0
+  lidar_x_range: 35.0
   lidar_y_range: 20.0
-  lidar_z_range: 5.0
+  lidar_z_range: 7.0
+  reject_large_pose_jump: true
+  max_pose_jump_translation: 2.0
+  max_pose_jump_rotation_deg: 5.0
 
 DataLoader:
   remove_groud: true
@@ -41,18 +44,22 @@ General:
   save_lo_frame: false
   save_lio_frame: true
   filter_saved_cloud: true
+  using_LIO_only: false
+  save_loop_closure_debug_info: true
 
 LoopClosure:
   loop_closure_search_radius: 10.0
-  loop_closure_min_keyframe_gap: 50
+  loop_closure_min_keyframe_gap: 30
   top_k_loop_closure_candidates: 5
-  loop_closure_fitness_score_threshold: 1.0
-  skip_count_for_loop_closure_detection: 20
+  loop_closure_fitness_score_threshold: 50.0
+  skip_count_for_loop_closure_detection: 10
 
 Optimizer:
   gps_edge_weight: 0.000001
   gps_relative_edge_weight: 0.00001
   lio_edge_weight: 1000.0
+  loop_closure_edge_weight: 2000.0
   local_optimization_widnow_size: 7
   min_keyframe_num_for_optimization: 5
-  iterations: 10
+  local_iterations: 10
+  global_iterations: 80

@@ -1,4 +1,5 @@
 #include "DataLoader.hpp"
+#include "ConfigManager.hpp"
 
     SensorDataPlayer::SensorDataPlayer(const std::string& input_data_path): data_path_(input_data_path){
         // Setup ROS bag reader
@@ -113,7 +114,7 @@
 
         for (; iter_x != iter_x.end(); ++iter_x, ++iter_y, ++iter_z, ++iter_i) {
             //remove the ground
-            if(*iter_z <= -1.0) continue;
+            if(*iter_z <= -1.0 && ConfigManager::Get().DataLoader_.remove_groud) continue;
             lidar_cloud->pt_list_.emplace_back(Point3D{*iter_x, *iter_y, *iter_z});
         }
         if(lidar_cb_){

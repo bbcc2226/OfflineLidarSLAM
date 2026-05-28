@@ -186,7 +186,7 @@ bool LoadPLY(const std::string& filename,
     for (size_t i = 0; i < vertex_count; ++i) {
         double x, y, z;
         fin >> x >> y >> z;
-        points->pt_list_.emplace_back(x, y, z);
+        points->pt_list_.emplace_back(Point3D{x, y, z});
         fin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
     }
 
