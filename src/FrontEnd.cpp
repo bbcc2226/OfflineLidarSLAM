@@ -398,6 +398,13 @@ void SlamFrontEnd::Impl::ProcessSensorData(){
 
             // std::cout<<std::setprecision(15)<<curr_comb.frame_id_<<" "<<curr_comb.timestamp_<<" "<<imu_wait_for_processing.size()
             //     <<" "<<gps_wait_for_processing.size()<<" "<<latest_imu_timestamp_<<"\n";
+        }else if(curr_comb.frame_id_ > 20){
+            std::cout<<"!!!!! "<<curr_comb.frame_id_<<" "<<curr_comb.timestamp_<<" "<<imu_wait_for_processing.size()
+                <<" "<<gps_wait_for_processing.size()<<" "<<latest_imu_timestamp_<<"\n";
+            Se3 pred_state;
+            std::pair<int,Se3> est_pose = lo_.AddCloud(curr_comb.filtered_cloud_,curr_comb.raw_cloud_,pred_state,true);
+            state_estimator_.MeasurementUpdateLidar(est_pose.second,curr_comb.timestamp_);
+
         }
         //std::this_thread::sleep_for(std::chrono::milliseconds(50));
     }
