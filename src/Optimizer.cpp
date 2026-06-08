@@ -133,10 +133,10 @@ void GraphOptimizer::AddLoopClosureEdge(g2o::VertexSE3* v_hist,
     e->setVertex(1, v_curr);
     e->setMeasurement(rel_pose);
 
-    // In g2o EdgeSE3 log: indices 0-2 = rotation (omega), 3-5 = translation.
+    // In the rotational part, x/y/z roughly correspond to roll/pitch/yaw for small errors.
     Eigen::Matrix<double, 6, 6> info = Eigen::Matrix<double, 6, 6>::Zero();
     const double t_w = ConfigManager::Get().Optimizer_.loop_closure_edge_weight;
-    info(0,0) = t_w * 0.6 ;  info(1,1) = t_w * 0.6;  info(2,2) = t_w * 0.6 ;  // rotation (yaw corrected by loop closure)
+    info(0,0) = t_w * 0.6;  info(1,1) = t_w * 0.6;  info(2,2) = t_w * 0.6;  // roll/pitch low, yaw high
     info(3,3) = t_w;  info(4,4) = t_w;  info(5,5) = t_w * 0.01; // xy strong, z weak
     e->setInformation(info);
 
