@@ -63,7 +63,9 @@ void InplaceApplyTransform(Sophus::SE3d& T,
 
 // -------- Apply downsample filter --------
 std::shared_ptr<PointCloud> ApplyDownSampleFilter(std::shared_ptr<PointCloud> input_cloud_ptr){
-    VoxelFilter filter(ConfigManager::Get().LidarOdometry_.voxel_resolution);
+    VoxelFilter filter(ConfigManager::Get().LidarOdometry_.voxel_resolution_x,
+                       ConfigManager::Get().LidarOdometry_.voxel_resolution_y,
+                       ConfigManager::Get().LidarOdometry_.voxel_resolution_z);
     return filter.Downsample(input_cloud_ptr);
 }
 

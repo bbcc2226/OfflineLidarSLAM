@@ -61,7 +61,14 @@ Config ConfigLoader::Load(const std::string& file_path) {
     if(root["LidarOdometry"]){
         auto lidar_odometry = root["LidarOdometry"];
         cfg.LidarOdometry_.voxel_resolution = getOrDefault(lidar_odometry, "voxel_resolution", cfg.LidarOdometry_.voxel_resolution);
+        cfg.LidarOdometry_.voxel_resolution_x = getOrDefault(lidar_odometry, "voxel_resolution_x", cfg.LidarOdometry_.voxel_resolution);
+        cfg.LidarOdometry_.voxel_resolution_y = getOrDefault(lidar_odometry, "voxel_resolution_y", cfg.LidarOdometry_.voxel_resolution);
+        cfg.LidarOdometry_.voxel_resolution_z = getOrDefault(lidar_odometry, "voxel_resolution_z", cfg.LidarOdometry_.voxel_resolution);
         cfg.LidarOdometry_.ndt_resolution = getOrDefault(lidar_odometry, "ndt_resolution", cfg.LidarOdometry_.ndt_resolution);
+        cfg.LidarOdometry_.scan_matching_gicp_max_correspondence_dist = getOrDefault(lidar_odometry, "scan_matching_gicp_max_correspondence_dist", cfg.LidarOdometry_.scan_matching_gicp_max_correspondence_dist);
+        cfg.LidarOdometry_.scan_matching_gicp_max_iter = getOrDefault(lidar_odometry, "scan_matching_gicp_max_iter", cfg.LidarOdometry_.scan_matching_gicp_max_iter);
+        cfg.LidarOdometry_.scan_matching_gicp_transform_epsilon = getOrDefault(lidar_odometry, "scan_matching_gicp_transform_epsilon", cfg.LidarOdometry_.scan_matching_gicp_transform_epsilon);
+        cfg.LidarOdometry_.scan_matching_gicp_fitness_epsilon = getOrDefault(lidar_odometry, "scan_matching_gicp_fitness_epsilon", cfg.LidarOdometry_.scan_matching_gicp_fitness_epsilon);
         cfg.LidarOdometry_.lidar_x_range = getOrDefault(lidar_odometry, "lidar_x_range", cfg.LidarOdometry_.lidar_x_range);
         cfg.LidarOdometry_.lidar_y_range = getOrDefault(lidar_odometry, "lidar_y_range", cfg.LidarOdometry_.lidar_y_range);
         cfg.LidarOdometry_.lidar_z_range = getOrDefault(lidar_odometry, "lidar_z_range", cfg.LidarOdometry_.lidar_z_range);
@@ -83,6 +90,9 @@ Config ConfigLoader::Load(const std::string& file_path) {
         cfg.General_.save_lio_frame = getOrDefault(general, "save_lio_frame", cfg.General_.save_lio_frame);
         cfg.General_.filter_saved_cloud = getOrDefault(general, "filter_saved_cloud", cfg.General_.filter_saved_cloud);
         cfg.General_.map_voxel_resolution = getOrDefault(general, "map_voxel_resolution", cfg.General_.map_voxel_resolution);
+        cfg.General_.map_voxel_resolution_x = getOrDefault(general, "map_voxel_resolution_x", cfg.General_.map_voxel_resolution);
+        cfg.General_.map_voxel_resolution_y = getOrDefault(general, "map_voxel_resolution_y", cfg.General_.map_voxel_resolution);
+        cfg.General_.map_voxel_resolution_z = getOrDefault(general, "map_voxel_resolution_z", cfg.General_.map_voxel_resolution);
         cfg.General_.num_pts_threshold_for_viz = getOrDefault(general, "num_pts_threshold_for_viz", cfg.General_.num_pts_threshold_for_viz);
         cfg.General_.using_LIO_only = getOrDefault(general, "using_LIO_only", cfg.General_.using_LIO_only);
         cfg.General_.save_loop_closure_debug_info = getOrDefault(general, "save_loop_closure_debug_info", cfg.General_.save_loop_closure_debug_info);
@@ -103,6 +113,7 @@ Config ConfigLoader::Load(const std::string& file_path) {
         cfg.LoopClosure_.loop_closure_search_radius = getOrDefault(loop_closure, "loop_closure_search_radius", cfg.LoopClosure_.loop_closure_search_radius);
         cfg.LoopClosure_.loop_closure_min_keyframe_gap = getOrDefault(loop_closure, "loop_closure_min_keyframe_gap", cfg.LoopClosure_.loop_closure_min_keyframe_gap);
         cfg.LoopClosure_.loop_closure_fitness_score_threshold = getOrDefault(loop_closure, "loop_closure_fitness_score_threshold", cfg.LoopClosure_.loop_closure_fitness_score_threshold);
+        cfg.LoopClosure_.loop_closure_gicp_fitness_score_threshold = getOrDefault(loop_closure, "loop_closure_gicp_fitness_score_threshold", cfg.LoopClosure_.loop_closure_gicp_fitness_score_threshold);
         cfg.LoopClosure_.top_k_loop_closure_candidates = getOrDefault(loop_closure, "top_k_loop_closure_candidates", cfg.LoopClosure_.top_k_loop_closure_candidates);
         cfg.LoopClosure_.skip_count_for_loop_closure_detection = getOrDefault(loop_closure, "skip_count_for_loop_closure_detection", cfg.LoopClosure_.skip_count_for_loop_closure_detection);
     }

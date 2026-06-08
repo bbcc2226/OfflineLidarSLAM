@@ -7,7 +7,9 @@
 
 class VoxelFilter{
 private:
-    double resolution_;
+    double resolution_x_;
+    double resolution_y_;
+    double resolution_z_;
     double x_range_ {ConfigManager::Get().LidarOdometry_.lidar_x_range};
     double y_range_ {ConfigManager::Get().LidarOdometry_.lidar_y_range};
     double z_range_ {ConfigManager::Get().LidarOdometry_.lidar_z_range};
@@ -19,21 +21,31 @@ private:
     // map current point to voxel key
     VoxelKey PointToKey(const Point3D& pt){
         return {
-            static_cast<int>(std::floor(pt[0] / resolution_)),
-            static_cast<int>(std::floor(pt[1] / resolution_)),
-            static_cast<int>(std::floor(pt[2] / resolution_)),            
+            static_cast<int>(std::floor(pt[0] / resolution_x_)),
+            static_cast<int>(std::floor(pt[1] / resolution_y_)),
+            static_cast<int>(std::floor(pt[2] / resolution_z_)),            
         };
     }
 
     VoxelKey PointToKey(const Eigen::Vector3d& pt){
         return {
-            static_cast<int>(std::floor(pt[0] / resolution_)),
-            static_cast<int>(std::floor(pt[1] / resolution_)),
-            static_cast<int>(std::floor(pt[2] / resolution_)),             
+            static_cast<int>(std::floor(pt[0] / resolution_x_)),
+            static_cast<int>(std::floor(pt[1] / resolution_y_)),
+            static_cast<int>(std::floor(pt[2] / resolution_z_)),             
         };
     }
 public:
-    explicit VoxelFilter(const double resolution):resolution_(resolution){}
+    explicit VoxelFilter(const double resolution)
+        : resolution_x_(resolution),
+          resolution_y_(resolution),
+          resolution_z_(resolution) {}
+
+    VoxelFilter(const double resolution_x,
+                const double resolution_y,
+                const double resolution_z)
+        : resolution_x_(resolution_x),
+          resolution_y_(resolution_y),
+          resolution_z_(resolution_z) {}
 
     std::shared_ptr<PointCloud> Downsample(std::shared_ptr<PointCloud> input_ptr,bool range_filter = true){
         std::unordered_map<VoxelKey, Accumulator, VoxelKeyHash> voxel_map;

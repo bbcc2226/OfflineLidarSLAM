@@ -33,7 +33,14 @@ struct GeoConverterConfig{
 
 struct LidarOdometryConfig{
     double voxel_resolution = 0.7;
+    double voxel_resolution_x = 0.7;
+    double voxel_resolution_y = 0.7;
+    double voxel_resolution_z = 0.7;
     double ndt_resolution = 4.0;
+    double scan_matching_gicp_max_correspondence_dist = 0.3;
+    int scan_matching_gicp_max_iter = 10;
+    double scan_matching_gicp_transform_epsilon = 1e-2;
+    double scan_matching_gicp_fitness_epsilon = 1e-2;
     double lidar_x_range = 40.0;
     double lidar_y_range = 15.0;
     double lidar_z_range = 5.0;
@@ -66,12 +73,16 @@ struct LoopClosureConfig{
     double loop_closure_search_radius = 10.0;
     int loop_closure_min_keyframe_gap = 50;
     double loop_closure_fitness_score_threshold = 20;
+    double loop_closure_gicp_fitness_score_threshold = 5.0;
     int top_k_loop_closure_candidates = 5;
     int skip_count_for_loop_closure_detection = 20;
 };
 
 struct GeneralConfig{
     double map_voxel_resolution = 0.5;
+    double map_voxel_resolution_x = 0.5;
+    double map_voxel_resolution_y = 0.5;
+    double map_voxel_resolution_z = 0.5;
     int num_pts_threshold_for_viz = 20;
     bool save_lo_frame = false;
     bool save_lio_frame = true;

@@ -24,7 +24,11 @@ private:
     bool first_frame_{true};
     Se3 last_kf_pose_{Se3()};
     NDT_INC ndt_inc_;
-    CoarseToFineRegistration scan_matcher_{0.5, 5, 1e-2, 1e-2};
+    CoarseToFineRegistration scan_matcher_{
+        ConfigManager::Get().LidarOdometry_.scan_matching_gicp_max_correspondence_dist,
+        ConfigManager::Get().LidarOdometry_.scan_matching_gicp_max_iter,
+        ConfigManager::Get().LidarOdometry_.scan_matching_gicp_transform_epsilon,
+        ConfigManager::Get().LidarOdometry_.scan_matching_gicp_fitness_epsilon};
     std::deque<Se3> est_pose_buffer_;
     
     bool PoseJumpAccepted(const Se3& guess, const Se3& estimated_pose) const;

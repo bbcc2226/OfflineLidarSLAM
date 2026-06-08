@@ -29,7 +29,9 @@ void CoarseToFineRegistration::RebuildTargetMap() {
                                        keyframe_cloud->pt_list_.end());
     }
 
-    VoxelFilter filter(ConfigManager::Get().General_.map_voxel_resolution);
+    VoxelFilter filter(ConfigManager::Get().General_.map_voxel_resolution_x,
+                       ConfigManager::Get().General_.map_voxel_resolution_y,
+                       ConfigManager::Get().General_.map_voxel_resolution_z);
     fine_target_cloud_world_ = filter.Downsample(rebuilt_cloud, false);
 }
 
