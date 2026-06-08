@@ -8,3 +8,4 @@ log/
 *.pyc
 *.log
 .DS_Store
+script/loop_closure_inspector_kf*.png
