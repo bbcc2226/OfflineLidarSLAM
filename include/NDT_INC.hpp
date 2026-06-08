@@ -32,7 +32,7 @@ struct VoxelGaussian_INC {
 // incremental NDT
 class NDT_INC{
 public:
-    explicit NDT_INC(const double resolution, const int max_voxels = 600)
+    explicit NDT_INC(const double resolution, const int max_voxels = 2000)
         : resolution_(resolution), max_voxels_(max_voxels) {}
     // input point cloud already in world frame
     void AddCloud(std::shared_ptr<PointCloud> input_scan_ptr);
