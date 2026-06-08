@@ -29,6 +29,7 @@ LidarOdometry:
   voxel_resolution_y: 0.8
   voxel_resolution_z: 0.8
   ndt_resolution: 3.0
+  scan_matching_use_gicp_fine_alignment: true
   scan_matching_gicp_max_correspondence_dist: 0.5
   scan_matching_gicp_max_iter: 10
   scan_matching_gicp_transform_epsilon: 1.0e-2

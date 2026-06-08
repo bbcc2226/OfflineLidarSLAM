@@ -99,6 +99,10 @@ Se3 CoarseToFineRegistration::Align(
         return coarse_pose;
     }
 
+    if (!ConfigManager::Get().LidarOdometry_.scan_matching_use_gicp_fine_alignment) {
+        return coarse_pose;
+    }
+
     if (!fine_target_cloud_world_ ||
         fine_target_cloud_world_->pt_list_.size() < 30) {
         return coarse_pose;
