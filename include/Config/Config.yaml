@@ -25,12 +25,12 @@ GeoConverter:
 
 LidarOdometry:
   voxel_resolution: 0.8
-  voxel_resolution_x: 0.8
-  voxel_resolution_y: 0.8
-  voxel_resolution_z: 0.8
+  voxel_resolution_x: 0.65
+  voxel_resolution_y: 0.65
+  voxel_resolution_z: 0.65
   ndt_resolution: 3.0
   scan_matching_use_gicp_fine_alignment: true
-  scan_matching_gicp_max_correspondence_dist: 0.5
+  scan_matching_gicp_max_correspondence_dist: 0.3
   scan_matching_gicp_max_iter: 10
   scan_matching_gicp_transform_epsilon: 1.0e-2
   scan_matching_gicp_fitness_epsilon: 1.0e-2
@@ -59,19 +59,19 @@ General:
   save_loop_closure_debug_info: true
 
 LoopClosure:
-  loop_closure_search_radius: 15.0
-  loop_closure_min_keyframe_gap: 10
+  loop_closure_search_radius: 10
+  loop_closure_min_keyframe_gap: 20
   top_k_loop_closure_candidates: 5
-  loop_closure_fitness_score_threshold: 50.0
+  loop_closure_fitness_score_threshold: 5.0
   loop_closure_gicp_fitness_score_threshold: 5.0
-  skip_count_for_loop_closure_detection: 10
+  skip_count_for_loop_closure_detection: 5
 
 Optimizer:
-  gps_edge_weight: 0.005
+  gps_edge_weight: 0.01
   gps_relative_edge_weight: 0.00001
   lio_edge_weight: 1000.0
-  loop_closure_edge_weight: 300.0
-  local_optimization_widnow_size: 7
+  loop_closure_edge_weight: 200.0
+  local_optimization_widnow_size: 10
   min_keyframe_num_for_optimization: 5
   local_iterations: 10
   global_iterations: 80
