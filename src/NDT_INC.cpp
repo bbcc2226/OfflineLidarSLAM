@@ -45,13 +45,14 @@ Se3 NDT_INC::Align(std::shared_ptr<PointCloud> input_scan_ptr,const Se3& init_po
     Sophus::SE3d T = init_pose;
     const size_t N = input_scan_ptr->pt_list_.size();
 
+    std::vector<Eigen::Matrix<double,3,6>> jacobians(N);
+    std::vector<Eigen::Vector3d> errors(N);
+    std::vector<Eigen::Matrix3d> infos(N);
+    std::vector<uint8_t> effect_pts(N, 0);
+
     for (int iter = 0; iter < max_iter; ++iter) {
         std::cout<<" Iteration " << iter << " / " << max_iter << std::endl;
-        // Pre-allocate per-point containers
-        std::vector<Eigen::Matrix<double,3,6>> jacobians(N);
-        std::vector<Eigen::Vector3d> errors(N);
-        std::vector<Eigen::Matrix3d> infos(N);
-        std::vector<bool> effect_pts(N);
+        std::fill(effect_pts.begin(), effect_pts.end(), static_cast<uint8_t>(0));
 
         // --- 1. Compute residuals & Jacobians in parallel ---
         std::for_each(std::execution::par_unseq, input_scan_ptr->pt_list_.begin(), input_scan_ptr->pt_list_.end(),
@@ -64,7 +65,7 @@ Se3 NDT_INC::Align(std::shared_ptr<PointCloud> input_scan_ptr,const Se3& init_po
                 const VoxelKey voxel_key = PointToKey(trans_p);
                 auto it = grids_.find(voxel_key);
                 if (it == grids_.end()) {
-                    effect_pts[idx] = false;
+                    effect_pts[idx] = 0;
                     return;
                 }
 
@@ -74,7 +75,7 @@ Se3 NDT_INC::Align(std::shared_ptr<PointCloud> input_scan_ptr,const Se3& init_po
                 // Optional chi2 threshold
                 double res = r.transpose() * voxel.inv_cov_ * r;
                 if (std::isnan(res) || res > 9.21) {
-                    effect_pts[idx] = false;
+                    effect_pts[idx] = 0;
                     return;
                 }
 
@@ -86,7 +87,7 @@ Se3 NDT_INC::Align(std::shared_ptr<PointCloud> input_scan_ptr,const Se3& init_po
                 jacobians[idx] = J;
                 errors[idx] = r;
                 infos[idx] = voxel.inv_cov_;
-                effect_pts[idx] = true;
+                effect_pts[idx] = 1;
             }
         );
 
@@ -107,7 +108,7 @@ Se3 NDT_INC::Align(std::shared_ptr<PointCloud> input_scan_ptr,const Se3& init_po
         // --- 3. Solve for update ---
         Eigen::Matrix<double,6,1> dx = H.ldlt().solve(b);
         std::cout << "Iter " << iter << ", |dx| = " << dx.norm() << std::endl;
-        if (dx.norm() < 0.005) break;
+        if (dx.norm() < 0.01) break;
 
         // Apply Left Update
         Eigen::Matrix<double,6,1> se3_tangent;
@@ -247,8 +248,8 @@ void NDT_INC::UpdateMeanAndVariance(VoxelGaussian_INC& voxel_data){
 
 VoxelKey NDT_INC::PointToKey(const Eigen::Vector3d& pt){
     return {
-        static_cast<int>(std::floor(pt[0] / resolution_)),
-        static_cast<int>(std::floor(pt[1] / resolution_)),
-        static_cast<int>(std::floor(pt[2] / resolution_)),             
+        static_cast<int>(std::floor(pt[0] / resolution_x_)),
+        static_cast<int>(std::floor(pt[1] / resolution_y_)),
+        static_cast<int>(std::floor(pt[2] / resolution_z_)),
     };
 }

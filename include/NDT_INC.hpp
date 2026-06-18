@@ -32,8 +32,17 @@ struct VoxelGaussian_INC {
 // incremental NDT
 class NDT_INC{
 public:
-    explicit NDT_INC(const double resolution, const int max_voxels = 2000)
-        : resolution_(resolution), max_voxels_(max_voxels) {}
+    explicit NDT_INC(const double resolution, const int max_voxels = 1000)
+        : NDT_INC(resolution, resolution, resolution, max_voxels) {}
+
+    NDT_INC(const double resolution_x,
+            const double resolution_y,
+            const double resolution_z,
+            const int max_voxels = 1000)
+        : resolution_x_(resolution_x),
+          resolution_y_(resolution_y),
+          resolution_z_(resolution_z),
+          max_voxels_(max_voxels) {}
     // input point cloud already in world frame
     void AddCloud(std::shared_ptr<PointCloud> input_scan_ptr);
 
@@ -46,7 +55,9 @@ public:
     double ComputeFitnessScore(std::shared_ptr<PointCloud> input_scan_ptr,const Se3& pose);
 
 private:
-    const double resolution_;
+    const double resolution_x_;
+    const double resolution_y_;
+    const double resolution_z_;
     const int    max_voxels_;
     bool initial_ {false};
     using KeyAndVoxel = std::pair<VoxelKey, VoxelGaussian_INC>;
