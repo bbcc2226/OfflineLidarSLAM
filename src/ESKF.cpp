@@ -80,11 +80,8 @@ void ESKF::Impl::ProjectCov(){
 void ESKF::Impl::Prediction(const std::shared_ptr<IMUdata>& input_imu){
     
     const double dt = input_imu->timestamp_ - timestamp_;
-    Vec3 gravity_;
-    gravity_ << 0.0,0.0,9.81;
     // update the new state base on input imu
     // std::cout<<"vel: "<<v_<<"\n";
-    // std::cout<<" "<<dt<<" "<<input_imu->acc_<<" "<<input_imu->gyro_<<"\n";
     Vec3 new_p = p_ + v_ * dt + 0.5 * (r_ * (input_imu->acc_ - ba_ ) + g_) * dt * dt;
     Vec3 new_v = v_ + (r_ * (input_imu->acc_ - ba_) + g_) * dt;
     So3 new_r = r_ * So3::exp((input_imu->gyro_ -bg_) * dt);

@@ -158,7 +158,11 @@ private:
 };
 
 
-SlamFrontEnd::Impl::Impl():lo_(ConfigManager::Get().LidarOdometry_.ndt_resolution),data_loader_(ConfigManager::Get().DataLoader_.ros_bag_path){
+SlamFrontEnd::Impl::Impl()
+    : lo_(ConfigManager::Get().LidarOdometry_.ndt_resolution_x,
+          ConfigManager::Get().LidarOdometry_.ndt_resolution_y,
+          ConfigManager::Get().LidarOdometry_.ndt_resolution_z),
+      data_loader_(ConfigManager::Get().DataLoader_.ros_bag_path) {
     // bind the callback function
     data_loader_.SetLidarCallback(
         [this](std::shared_ptr<PointCloud> lidar_ptr){
@@ -352,7 +356,6 @@ void SlamFrontEnd::Impl::ProcessSensorData(){
             auto matched_gps = gps_wait_for_processing.back();
             // curr gps coordiante under ENU
             Vec3 gps_coordinate = geo_converter_.Geo2ENU(matched_gps->pos_);
-            std::cout<<matched_gps->timestamp_ - curr_comb.timestamp_<<" "<<gps_coordinate<<"\n";
             // perform the LO to estimate the pse measurement from Lidar scan
             TicToc timer;
             timer.tic();

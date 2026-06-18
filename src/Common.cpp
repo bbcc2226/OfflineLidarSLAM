@@ -75,7 +75,8 @@ std::shared_ptr<PointCloud> ApplyRangeFilter(std::shared_ptr<PointCloud> input_c
     for (const auto& p : input_cloud_ptr->pt_list_) {
         if(std::fabs(p[0]) > ConfigManager::Get().LidarOdometry_.lidar_x_range 
         || std::fabs(p[1]) > ConfigManager::Get().LidarOdometry_.lidar_y_range 
-        || std::fabs(p[2]) > ConfigManager::Get().LidarOdometry_.lidar_z_range){
+        || std::fabs(p[2]) > ConfigManager::Get().LidarOdometry_.lidar_z_range ||
+        p[2] < ConfigManager::Get().DataLoader_.kitti_groud_height){
             continue;
         }
         output_ptr->pt_list_.push_back(p);
