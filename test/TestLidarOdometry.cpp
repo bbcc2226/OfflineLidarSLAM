@@ -22,7 +22,7 @@ std::vector<fs::path> GetFiles(const std::string& folder) {
 
 TEST(LO_Test, TestSequence){
     std::vector<fs::path> files = GetFiles("./01/velodyne");
-    LidarOdodmetry LO(5);
+    LidarOdodmetry LO(5.0, 5.0, 2.5);
     int frame_count_limit = 100;
     for (const auto& f : files) {
         frame_count_limit -= 1;

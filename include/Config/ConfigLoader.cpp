@@ -61,10 +61,13 @@ Config ConfigLoader::Load(const std::string& file_path) {
     if(root["LidarOdometry"]){
         auto lidar_odometry = root["LidarOdometry"];
         cfg.LidarOdometry_.voxel_resolution = getOrDefault(lidar_odometry, "voxel_resolution", cfg.LidarOdometry_.voxel_resolution);
-        cfg.LidarOdometry_.voxel_resolution_x = getOrDefault(lidar_odometry, "voxel_resolution_x", cfg.LidarOdometry_.voxel_resolution);
-        cfg.LidarOdometry_.voxel_resolution_y = getOrDefault(lidar_odometry, "voxel_resolution_y", cfg.LidarOdometry_.voxel_resolution);
-        cfg.LidarOdometry_.voxel_resolution_z = getOrDefault(lidar_odometry, "voxel_resolution_z", cfg.LidarOdometry_.voxel_resolution);
+        cfg.LidarOdometry_.voxel_resolution_x = getOrDefault(lidar_odometry, "voxel_resolution_x", cfg.LidarOdometry_.voxel_resolution_x);
+        cfg.LidarOdometry_.voxel_resolution_y = getOrDefault(lidar_odometry, "voxel_resolution_y", cfg.LidarOdometry_.voxel_resolution_y);       
+        cfg.LidarOdometry_.voxel_resolution_z = getOrDefault(lidar_odometry, "voxel_resolution_z", cfg.LidarOdometry_.voxel_resolution_z);
         cfg.LidarOdometry_.ndt_resolution = getOrDefault(lidar_odometry, "ndt_resolution", cfg.LidarOdometry_.ndt_resolution);
+        cfg.LidarOdometry_.ndt_resolution_x = getOrDefault(lidar_odometry, "ndt_resolution_x", cfg.LidarOdometry_.ndt_resolution_x);
+        cfg.LidarOdometry_.ndt_resolution_y = getOrDefault(lidar_odometry, "ndt_resolution_y", cfg.LidarOdometry_.ndt_resolution_y);
+        cfg.LidarOdometry_.ndt_resolution_z = getOrDefault(lidar_odometry, "ndt_resolution_z", cfg.LidarOdometry_.ndt_resolution_z);
         cfg.LidarOdometry_.scan_matching_use_gicp_fine_alignment = getOrDefault(lidar_odometry, "scan_matching_use_gicp_fine_alignment", cfg.LidarOdometry_.scan_matching_use_gicp_fine_alignment);
         cfg.LidarOdometry_.scan_matching_gicp_max_correspondence_dist = getOrDefault(lidar_odometry, "scan_matching_gicp_max_correspondence_dist", cfg.LidarOdometry_.scan_matching_gicp_max_correspondence_dist);
         cfg.LidarOdometry_.scan_matching_gicp_max_iter = getOrDefault(lidar_odometry, "scan_matching_gicp_max_iter", cfg.LidarOdometry_.scan_matching_gicp_max_iter);

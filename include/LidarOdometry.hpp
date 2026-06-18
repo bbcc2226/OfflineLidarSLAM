@@ -9,7 +9,10 @@
 
 class LidarOdodmetry{
 public:
-    explicit LidarOdodmetry(const double ndt_resolution):ndt_inc_(ndt_resolution){}
+    LidarOdodmetry(const double ndt_resolution_x,
+                   const double ndt_resolution_y,
+                   const double ndt_resolution_z)
+        : ndt_inc_(ndt_resolution_x, ndt_resolution_y, ndt_resolution_z) {}
 
     std::pair<int,Se3> AddCloud(std::shared_ptr<PointCloud>& filtered_cloud_ptr, std::shared_ptr<PointCloud>& raw_cloud_ptr, const Se3& predicted_pose, bool use_lo = false);
 

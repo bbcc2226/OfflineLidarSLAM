@@ -36,7 +36,10 @@ struct LidarOdometryConfig{
     double voxel_resolution_x = 0.7;
     double voxel_resolution_y = 0.7;
     double voxel_resolution_z = 0.7;
-    double ndt_resolution = 4.0;
+    double ndt_resolution = 3.0;
+    double ndt_resolution_x = 3.0;
+    double ndt_resolution_y = 3.0;
+    double ndt_resolution_z = 0.3;
     bool scan_matching_use_gicp_fine_alignment = true;
     double scan_matching_gicp_max_correspondence_dist = 0.3;
     int scan_matching_gicp_max_iter = 10;

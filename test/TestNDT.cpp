@@ -10,11 +10,6 @@
 #include "Common.hpp"
 #include "TicToc.hpp"
 
-#include <pcl/visualization/pcl_visualizer.h>
-#include <pcl/point_types.h>
-#include <pcl/point_cloud.h>
-#include <pcl/io/ply_io.h>
-
 
 // TEST(NDT_INC_Test, RealTest)
 // {
@@ -273,7 +268,7 @@ TEST(NDT_INC_Test, KeyframeNDTMatching)
     // est = refined pose of kf_id2 in the kf_id1 local frame; new absolute pose = pose1 * est.
     TicToc timer;
     timer.tic();
-    NDT_INC ndt_map(6.0);
+    NDT_INC ndt_map(6.0, 6.0, 3.0);
     ndt_map.AddCloud(map_cloud);
     Sophus::SE3d est = ndt_map.Align(cloud2, init_guess, 40);
     timer.toc("NDT processing time: ");
