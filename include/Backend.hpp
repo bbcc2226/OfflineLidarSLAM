@@ -43,6 +43,8 @@ private:
     std::condition_variable key_frame_queue_cv_;
 
     std::atomic<bool> stop_{false};
+    std::atomic<bool> local_graph_done_{false};
+    std::atomic<int> pending_keyframes_{0};
     std::atomic<bool> rtk_yaw_aligned_{false};
     std::atomic<double> yaw_align_rad_{0.0};
 

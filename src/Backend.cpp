@@ -23,6 +23,7 @@ void Backend::PushKeyFrame(const std::shared_ptr<KeyFrame>& key_frame_ptr) {
     {
         std::lock_guard<std::mutex> lock(key_frame_queue_mtx_);
         key_frame_queue_.push(key_frame_ptr);
+        pending_keyframes_.fetch_add(1, std::memory_order_relaxed);
         key_frame_queue_cv_.notify_one();
     }
 
@@ -47,7 +48,7 @@ void Backend::Join() {
 }
 
 bool Backend::IsFinished() const {
-    return stop_;
+    return stop_ && local_graph_done_ && pending_keyframes_.load(std::memory_order_relaxed) == 0;
 }
 
 void Backend::PublishMap() {
@@ -59,6 +60,7 @@ void Backend::PublishMap() {
 }
 
 void Backend::LocalGraphOptimization() {
+    local_graph_done_ = false;
     std::deque<g2o::VertexSE3*> active_poses;
     std::deque<int> active_frame_ids;
     std::vector<int> frame_id_collections;
@@ -69,11 +71,16 @@ void Backend::LocalGraphOptimization() {
     while (true) {
         std::unique_lock<std::mutex> lock(key_frame_queue_mtx_);
         key_frame_queue_cv_.wait(lock, [this] { return !key_frame_queue_.empty() || stop_; });
-        if (stop_) {
+        if (stop_ && key_frame_queue_.empty()) {
             break;
+        }
+
+        if (key_frame_queue_.empty()) {
+            continue;
         }
         auto key_frame = key_frame_queue_.front();
         key_frame_queue_.pop();
+        pending_keyframes_.fetch_sub(1, std::memory_order_relaxed);
         lock.unlock();
 
         const int current_frame_id = key_frame->key_frame_id_;
@@ -288,4 +295,5 @@ void Backend::LocalGraphOptimization() {
             std::cout << active_frame_ids[i] << " Pose " << i << ": " << active_poses[i]->estimate().translation().transpose() << "\n";
         }
     }
+    local_graph_done_ = true;
 }
