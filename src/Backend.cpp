@@ -52,7 +52,7 @@ bool Backend::IsFinished() const {
 }
 
 void Backend::PublishMap() {
-    while (!stop_) {
+    while (!IsFinished()) {
         auto updated_map = voxel_map_.GetPointCloud();
         map_publisher_.publish(updated_map.second, updated_map.first);
         std::this_thread::sleep_for(std::chrono::milliseconds(1000));
