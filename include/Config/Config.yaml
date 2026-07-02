@@ -3,8 +3,8 @@ ESKF:
   process_rot_noise: 0.1
   process_ba_noise: 1.0e-7
   process_bg_noise: 1.0e-7
-  measurement_pos_noise: 1.0e-4
-  measurement_rot_noise: 1.0e-4
+  measurement_pos_noise: 1.0e-3
+  measurement_rot_noise: 1.0e-3
 
 FrontEnd:
   lidar_buffer_upper_capacity: 100
@@ -41,8 +41,8 @@ LidarOdometry:
   lidar_y_range: 40.0
   lidar_z_range: 5.0
   reject_large_pose_jump: true
-  max_pose_jump_translation: 2.0
-  max_pose_jump_rotation_deg: 5.0
+  max_pose_jump_translation: 0.3
+  max_pose_jump_rotation_deg: 0.3
 
 DataLoader:
   remove_groud: true

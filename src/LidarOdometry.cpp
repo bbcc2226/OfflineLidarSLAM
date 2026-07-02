@@ -40,39 +40,46 @@ std::pair<int,Se3> LidarOdodmetry::AddCloud(std::shared_ptr<PointCloud>& filtere
     }else{
         Se3 guess = predicted_pose;
         Se3 motion_predicted_pose;
+        bool lo_flag = false;
         if(est_pose_buffer_.size() >= 2 ){
             Se3 T1 = est_pose_buffer_[est_pose_buffer_.size() - 1];
             Se3 T2 = est_pose_buffer_[est_pose_buffer_.size() - 2];
             motion_predicted_pose = T1 * (T2.inverse() * T1);
-            if(use_lo || frame_cnt_ < 20 ){
+            if(use_lo || total_cnt_ < 20 ){
                 guess = motion_predicted_pose;
+                lo_flag = true;
             }
         }
         Se3 est_pose = scan_matcher_.Align(filtered_cloud_ptr,
                                           ndt_inc_,
                                           guess);
-        const bool accepted_pose = PoseJumpAccepted(guess, est_pose);
-        if (!accepted_pose) {
-            est_pose_buffer_.push_back(guess);
-            frame_cnt_ += 1;
-            return {-1, guess};
+        if(!lo_flag) {
+            Se3 lo_est_pose = scan_matcher_.Align(filtered_cloud_ptr,
+                                          ndt_inc_,
+                                          motion_predicted_pose);
+            const bool accepted_pose = PoseJumpAccepted(lo_est_pose, est_pose);
+            if (!accepted_pose) {
+                est_pose = lo_est_pose;
+            }
         }
+
         est_pose_buffer_.push_back(est_pose);
         frame_cnt_ += 1;
-        bool key_frame_flag = false;
-        if(KeyFrameCheck(est_pose)){
-            key_frame_flag = true; 
-            frame_cnt_ = 0;
-            key_frame_cnt_ += 1;
-            last_kf_pose_ = est_pose;
+        bool key_frame_flag = KeyFrameCheck(est_pose);
+        if(key_frame_flag ){
+ 
             //std::cout<<est_pose.matrix()<<std::endl;
             std::shared_ptr<PointCloud> curr_filtered_world_cloud = ApplyTransform(est_pose,filtered_cloud_ptr);
             ndt_inc_.AddCloud(curr_filtered_world_cloud);
             scan_matcher_.AddTargetFrame(curr_filtered_world_cloud);
             //save worl frame cloud (key frame ) to file
             std::shared_ptr<PointCloud> curr_world_cloud = ApplyTransform(est_pose,raw_cloud_ptr);
-            SaveFrame(curr_world_cloud);
+            //SaveFrame(curr_world_cloud);
+            frame_cnt_ = 0;
+            key_frame_cnt_ += 1;
+            last_kf_pose_ = est_pose;
             return {key_frame_cnt_,est_pose};
+
         }else{
             return {-1,est_pose};
         }
