@@ -22,7 +22,7 @@ public:
 
         pose.pose.position.x = pos.x();
         pose.pose.position.y = pos.y();
-        pose.pose.position.z = 0.0;
+        pose.pose.position.z = pos.z();
 
         pose.pose.orientation.w = 1.0;
 
@@ -52,7 +52,7 @@ public:
 
                 buffered_pose.pose.position.x = corrected_gps_pos.x();
                 buffered_pose.pose.position.y = corrected_gps_pos.y();
-                buffered_pose.pose.position.z = 0.0;
+                buffered_pose.pose.position.z = corrected_gps_pos.z();
 
                 buffered_pose.pose.orientation.w = 1.0;
 
@@ -88,7 +88,7 @@ public:
             pose.header.frame_id = "map";
             pose.pose.position.x = pos.x();
             pose.pose.position.y = pos.y();
-            pose.pose.position.z = 0.0;
+            pose.pose.position.z = pos.z();
             pose.pose.orientation.w = 1.0;
             lio_path_.poses.push_back(pose);
         }
@@ -109,7 +109,7 @@ public:
             pose.header.frame_id = "map";
             pose.pose.position.x = pos.x();
             pose.pose.position.y = pos.y();
-            pose.pose.position.z = 0.0;
+            pose.pose.position.z = pos.z();
             pose.pose.orientation.w = 1.0;
             rtk_path_.poses.push_back(pose);
         }

@@ -1,13 +1,16 @@
 #ifndef OFFLINE_LIDAR_SLAM_TOOLS_KEYFRAME_JSON_IO_HPP_
 #define OFFLINE_LIDAR_SLAM_TOOLS_KEYFRAME_JSON_IO_HPP_
 
+#include <algorithm>
 #include <filesystem>
 #include <fstream>
+#include <iomanip>
 #include <iostream>
 #include <memory>
 #include <sstream>
 #include <string>
 #include <unordered_map>
+#include <vector>
 
 #include <DataType.hpp>
 #include "TicToc.hpp"
@@ -68,6 +71,7 @@ inline std::string KeyFrameRecordToJsonLine(const KeyFrameJsonRecord& record) {
     std::ostringstream out;
     out << "{" << '\n'
         << "  \"key_frame_id\": " << record.key_frame_id << ",\n"
+        << std::fixed << std::setprecision(15)
         << "  \"timestamp\": " << record.timestamp << ",\n"
         << "  \"saved_frame_path\": \"" << EscapeJsonString(record.saved_frame_path) << "\",\n"
         << "  \"valid_rtk\": " << (record.valid_rtk ? "true" : "false") << ",\n"
@@ -141,6 +145,48 @@ inline void RecordKeyFrameToJson(
 
     AppendKeyFrameRecordToJsonl(record, keyframe_json_output_path);
     timer.toc("Key frame JSONL recording time is");
+}
+
+inline void RewriteKeyFramesToJson(
+    const std::unordered_map<int, Se3>& id_to_pose,
+    const std::unordered_map<int, std::shared_ptr<KeyFrame>>& key_frame_info_map,
+    std::string& keyframe_json_output_path) {
+    if (id_to_pose.empty()) {
+        return;
+    }
+
+    if (keyframe_json_output_path.empty()) {
+        keyframe_json_output_path = ResolveKeyFrameJsonPath(key_frame_info_map, keyframe_json_output_path);
+    }
+    TruncateKeyFrameJsonl(keyframe_json_output_path);
+
+    std::vector<int> sorted_ids;
+    sorted_ids.reserve(id_to_pose.size());
+    for (const auto& kv : id_to_pose) {
+        sorted_ids.push_back(kv.first);
+    }
+    std::sort(sorted_ids.begin(), sorted_ids.end());
+
+    for (const int key_frame_id : sorted_ids) {
+        const auto info_it = key_frame_info_map.find(key_frame_id);
+        const auto pose_it = id_to_pose.find(key_frame_id);
+        if (info_it == key_frame_info_map.end() || pose_it == id_to_pose.end()) {
+            continue;
+        }
+
+        const auto& key_frame_info = info_it->second;
+        KeyFrameJsonRecord record;
+        record.key_frame_id = key_frame_info->key_frame_id_;
+        record.timestamp = key_frame_info->timestamp_;
+        record.saved_frame_path = key_frame_info->saved_frame_path_;
+        record.valid_rtk = key_frame_info->valid_rtk_;
+        record.rtk_pos = key_frame_info->rtk_pos_;
+        record.rtk_align_yaw = key_frame_info->rtk_align_yaw_;
+        record.lio_pose = key_frame_info->lio_pose_;
+        record.optimized_pose = pose_it->second;
+
+        AppendKeyFrameRecordToJsonl(record, keyframe_json_output_path);
+    }
 }
 
 }  // namespace tools

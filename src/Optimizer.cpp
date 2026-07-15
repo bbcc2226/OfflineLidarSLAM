@@ -114,7 +114,7 @@ void GraphOptimizer::AddLIOEdge(g2o::VertexSE3* v1,
         Eigen::Matrix<double, 6, 6>::Identity();
 
     info *= ConfigManager::Get().Optimizer_.lio_edge_weight;
-    info(2,2) = 0.0001; // less weight on z
+    info(2,2) = 0.1; // less weight on z
     e->setInformation(info);
 
     optimizer_.addEdge(e);
@@ -161,12 +161,12 @@ void GraphOptimizer::AddGPSEdge(g2o::VertexSE3* v_pose,
 
     Eigen::Matrix3d info = Eigen::Matrix3d::Identity();
     info *= ConfigManager::Get().Optimizer_.gps_edge_weight;
-    info(2,2) = 100.0; // less weight on z
+    info(2,2) = 10.0; 
     e->setInformation(info);
 
     // robust kernel (protect against bad GPS)
     auto* rk = new g2o::RobustKernelHuber();
-    rk->setDelta(0.5);
+    rk->setDelta(4.0);
     e->setRobustKernel(rk);
 
     optimizer_.addEdge(e);

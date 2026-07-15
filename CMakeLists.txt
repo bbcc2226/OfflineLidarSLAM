@@ -166,6 +166,8 @@ endif()
 install(PROGRAMS
   script/kitti_unsynced_ros2bag.py
   script/cloud_publisher.py
+  script/associate_keyframes_images.py
+  script/project_keyframes_to_image.py
   DESTINATION lib/${PROJECT_NAME}
 )
 

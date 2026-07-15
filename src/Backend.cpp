@@ -213,6 +213,7 @@ void Backend::LocalGraphOptimization() {
                       [](const auto& a, const auto& b) { return a.first < b.first; });
 
             loop_closure_detector_.UpdateKeyFramePoses(id_to_pose);
+            tools::RewriteKeyFramesToJson(id_to_pose, key_frame_info_map_, keyframe_json_output_path_);
 
             for (auto& [frame_id, pose] : sorted_optimized) {
                 processed_map_frame_id.insert(frame_id);
