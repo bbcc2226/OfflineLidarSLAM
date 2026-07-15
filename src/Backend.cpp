@@ -67,6 +67,7 @@ void Backend::LocalGraphOptimization() {
     std::unordered_set<int> processed_map_frame_id;
     Se3 corrected_pose(Eigen::Matrix3d::Identity(), Eigen::Vector3d::Zero());
     std::unordered_map<int, Se3> post_loop_closure_poses;
+    const bool using_lio_only = true;
 
     while (true) {
         std::unique_lock<std::mutex> lock(key_frame_queue_mtx_);
@@ -86,6 +87,24 @@ void Backend::LocalGraphOptimization() {
         const int current_frame_id = key_frame->key_frame_id_;
         frame_id_collections.push_back(current_frame_id);
         key_frame_info_map_[current_frame_id] = key_frame;
+
+        if (using_lio_only) {
+            if (processed_map_frame_id.find(current_frame_id) == processed_map_frame_id.end()) {
+                processed_map_frame_id.insert(current_frame_id);
+                std::vector<Vec3> curr_point_cloud;
+                LoadPLY(key_frame->saved_frame_path_, curr_point_cloud);
+                voxel_map_.InsertCloud(curr_point_cloud, key_frame->lio_pose_, key_frame->timestamp_, current_frame_id);
+                //voxel_map_.RemoveSparseVoxels();
+                path_publisher_.AddPathPoint(key_frame->lio_pose_.translation());
+            }
+
+            // tools::RecordKeyFrameToJson(current_frame_id,
+            //                             key_frame->lio_pose_,
+            //                             key_frame_info_map_,
+            //                             keyframe_json_output_path_);
+            // key_frame->optimized_pose_ = {true, key_frame->lio_pose_};
+            continue;
+        }
 
         if (!rtk_yaw_aligned_) {
             continue;

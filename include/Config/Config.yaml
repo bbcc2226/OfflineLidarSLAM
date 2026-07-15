@@ -8,8 +8,8 @@ ESKF:
 
 FrontEnd:
   lidar_buffer_upper_capacity: 100
-  imu_buffer_upper_capacity: 2000
-  gps_buffer_upper_capacity: 2000
+  imu_buffer_upper_capacity: 5000
+  gps_buffer_upper_capacity: 5000
 
   lidar_buffer_lower_capacity: 30
   imu_buffer_lower_capacity: 200
@@ -24,21 +24,21 @@ GeoConverter:
   e2: 0.00669437999014       
 
 LidarOdometry:
-  voxel_resolution: 0.8
-  voxel_resolution_x: 0.65
-  voxel_resolution_y: 0.65
-  voxel_resolution_z: 0.65
-  ndt_resolution: 3.0
-  ndt_resolution_x: 3.0
-  ndt_resolution_y: 3.0
-  ndt_resolution_z: 3.0
-  scan_matching_use_gicp_fine_alignment: true
+  voxel_resolution: 0.5
+  voxel_resolution_x: 0.5
+  voxel_resolution_y: 0.5
+  voxel_resolution_z: 0.5
+  ndt_resolution: 1.0
+  ndt_resolution_x: 1.0
+  ndt_resolution_y: 1.0
+  ndt_resolution_z: 1.0
+  scan_matching_use_gicp_fine_alignment: false
   scan_matching_gicp_max_correspondence_dist: 0.3
   scan_matching_gicp_max_iter: 10
   scan_matching_gicp_transform_epsilon: 1.0e-2
   scan_matching_gicp_fitness_epsilon: 1.0e-2
-  lidar_x_range: 60.0
-  lidar_y_range: 40.0
+  lidar_x_range: 25.0
+  lidar_y_range: 25.0
   lidar_z_range: 5.0
   reject_large_pose_jump: true
   max_pose_jump_translation: 0.3
@@ -47,14 +47,14 @@ LidarOdometry:
 DataLoader:
   remove_groud: true
   kitti_groud_height: -1.0
-  ros_bag_path: "/root/ros2_ws/2011_10_03_drive_0027_bag"
+  ros_bag_path: "/root/ros2_ws/data/my_bag"
 
 General:
-  map_voxel_resolution: 0.45
-  map_voxel_resolution_x: 0.45
-  map_voxel_resolution_y: 0.45
-  map_voxel_resolution_z: 0.45
-  num_pts_threshold_for_viz: 20
+  map_voxel_resolution: 0.1
+  map_voxel_resolution_x: 0.1
+  map_voxel_resolution_y: 0.1
+  map_voxel_resolution_z: 0.1
+  num_pts_threshold_for_viz: 2
   save_lo_frame: false
   save_lio_frame: true
   filter_saved_cloud: true

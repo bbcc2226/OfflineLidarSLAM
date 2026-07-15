@@ -114,7 +114,7 @@
 
         for (; iter_x != iter_x.end(); ++iter_x, ++iter_y, ++iter_z, ++iter_i) {
             //remove the ground
-            if(*iter_z <= -1.0 && ConfigManager::Get().DataLoader_.remove_groud) continue;
+            if(*iter_z <= -0.7 && ConfigManager::Get().DataLoader_.remove_groud) continue;
             lidar_cloud->pt_list_.emplace_back(Point3D{*iter_x, *iter_y, *iter_z});
         }
         if(lidar_cb_){
