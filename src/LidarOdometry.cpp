@@ -91,9 +91,9 @@ std::pair<int,Se3> LidarOdodmetry::AddCloud(std::shared_ptr<PointCloud>& filtere
 bool LidarOdodmetry::KeyFrameCheck(const Se3& input_pose){
 
     // large motion jump or frame cnt is over 10
-    if(frame_cnt_ > 10){
+    //if(frame_cnt_ > 10){
         return true;
-    }
+    //}
     Se3 delta = last_kf_pose_.inverse() * input_pose;
     
     return delta.translation().norm() > 4.0 ||
@@ -104,6 +104,6 @@ bool LidarOdodmetry::KeyFrameCheck(const Se3& input_pose){
 void LidarOdodmetry::SaveFrame(const std::shared_ptr<PointCloud>& cloud){
     if(ConfigManager::Get().General_.save_lo_frame){
         const std::string frame_path = GenerateFramePath("./LO_results",key_frame_cnt_);
-        SaveCloud(cloud, frame_path,true);
+        SaveCloud(cloud, frame_path);
     }
 }
