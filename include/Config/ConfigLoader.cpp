@@ -86,6 +86,7 @@ Config ConfigLoader::Load(const std::string& file_path) {
         cfg.DataLoader_.remove_groud = getOrDefault(data_loader, "remove_groud", cfg.DataLoader_.remove_groud);
         cfg.DataLoader_.kitti_groud_height = getOrDefault(data_loader, "kitti_groud_height", cfg.DataLoader_.kitti_groud_height);
         cfg.DataLoader_.ros_bag_path = getOrDefault(data_loader, "ros_bag_path", cfg.DataLoader_.ros_bag_path);
+        cfg.DataLoader_.skip_frames = getOrDefault(data_loader, "skip_frames", cfg.DataLoader_.skip_frames);
     }
 
     if(root["General"]){

@@ -45,9 +45,10 @@ LidarOdometry:
   max_pose_jump_rotation_deg: 0.3
 
 DataLoader:
-  remove_groud: true
+  remove_groud: false
   kitti_groud_height: -1.0
-  ros_bag_path: "/root/ros2_ws/data/my_bag"
+  skip_frames: 400
+  ros_bag_path: "/root/ros2_ws/data/roof"
 
 General:
   map_voxel_resolution: 0.1

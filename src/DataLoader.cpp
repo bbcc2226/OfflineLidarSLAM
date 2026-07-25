@@ -37,7 +37,7 @@
 
     void SensorDataPlayer::LoadingThread(){
         pthread_setname_np(pthread_self(), "data_load");
-
+        int lidar_skip_frames_ = ConfigManager::Get().DataLoader_.skip_frames;
         while(stop_ == false){
             std::unique_lock<std::mutex> lock(loading_mutex_);
             task_cv_.wait(lock,[&]{
@@ -66,7 +66,7 @@
             }else if(bag_msg->topic_name == gps_topic_){
                 //std::cout<<"sending gps message \n";
                 ProcessGPSMsg(sensor_msg);
-            }else if(bag_msg->topic_name == lidar_topic_){
+            }else if(bag_msg->topic_name == lidar_topic_ && (lidar_skip_frames_-- <0)){
                 //std::cout<<"sending lidar message \n";
                 ProcessLidarMsg(sensor_msg);
             }
@@ -115,6 +115,8 @@
         for (; iter_x != iter_x.end(); ++iter_x, ++iter_y, ++iter_z, ++iter_i) {
             //remove the ground
             if(*iter_z <= -0.7 && ConfigManager::Get().DataLoader_.remove_groud) continue;
+            //remove the prettry close points
+            if(std::sqrt((*iter_x) * (*iter_x) + (*iter_y) * (*iter_y) + (*iter_z) * (*iter_z)) < 1.5) continue;
             lidar_cloud->pt_list_.emplace_back(Point3D{*iter_x, *iter_y, *iter_z});
         }
         if(lidar_cb_){
