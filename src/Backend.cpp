@@ -96,6 +96,7 @@ void Backend::LocalGraphOptimization() {
                 voxel_map_.InsertCloud(curr_point_cloud, key_frame->lio_pose_, key_frame->timestamp_, current_frame_id);
                 //voxel_map_.RemoveSparseVoxels();
                 path_publisher_.AddPathPoint(key_frame->lio_pose_.translation());
+                tools::RecordKeyFrameToJson(current_frame_id, key_frame->lio_pose_, key_frame_info_map_, keyframe_json_output_path_);
             }
 
             // tools::RecordKeyFrameToJson(current_frame_id,
