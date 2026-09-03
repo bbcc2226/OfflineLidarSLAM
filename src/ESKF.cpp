@@ -92,9 +92,9 @@ void ESKF::Impl::Prediction(const std::shared_ptr<IMUdata>& input_imu){
     Mat15 F = Mat15::Identity();
     F.block<3, 3>(0, 3) = Mat3::Identity() * dt;
     F.block<3, 3>(3, 6) = -r_.matrix() * So3::hat(input_imu->acc_ - ba_) * dt;
-    F.block<3, 3>(3, 12) = -r_.matrix() * dt;
+    F.block<3, 3>(3, 9) = -r_.matrix() * dt;
     F.block<3, 3>(6, 6) = So3::exp(-(input_imu->gyro_ - bg_) * dt).matrix();
-    F.block<3, 3>(6, 9) = -Mat3::Identity() * dt;
+    F.block<3, 3>(6, 12) = -Mat3::Identity() * dt;
     dx_ = F * dx_;
     //update the covarnace matrix
     P_ = F * P_ * F.transpose() + Q_;
@@ -114,12 +114,6 @@ void ESKF::Impl::MeasurementUpdate(const Sophus::SE3d& T_meas,const double input
     H.block<3, 3>(3, 6) = Mat3::Identity();
     R.block<3, 3>(0, 0) = Mat3::Identity() * ConfigManager::Get().ESKF_.measurement_pos_noise;
     R.block<3, 3>(3, 3) = Mat3::Identity() * ConfigManager::Get().ESKF_.measurement_rot_noise;
-
-    Sophus::SE3d T_hat(r_, p_);
-
-    // Pose error
-    Sophus::SE3d T_err = T_hat.inverse() * T_meas;
-    Eigen::Matrix<double,6,1> se3_err = T_err.log();
 
     // std::cout<<"measuremnt R :" << T_meas.so3().matrix().eulerAngles(2, 1, 0)<<"\n";
     // std::cout<<"prediction R :" << r_.matrix().eulerAngles(2, 1, 0)<<"\n";
