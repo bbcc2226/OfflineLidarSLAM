@@ -6,7 +6,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-  add_compile_options(-Wall -Wextra -Wpedantic)
+  add_compile_options(-Wall -Wextra)
 endif()
 
 find_package(ament_cmake REQUIRED)
@@ -163,6 +163,15 @@ if(BUILD_TESTING)
   ament_lint_auto_find_test_dependencies()
 
   find_package(ament_cmake_gtest REQUIRED)
+
+  ament_add_gtest(test_synthetic_core
+    test/TestSyntheticCore.cpp
+    src/GeoConverter.cpp
+  )
+  target_link_libraries(test_synthetic_core
+    Config_lib
+    Eigen3::Eigen
+  )
 
   ament_add_gtest(test_dataloader test/TestDataLoader.cpp)
   target_link_libraries(test_dataloader dataloader)

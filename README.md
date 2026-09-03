@@ -214,6 +214,19 @@ Typical tuning directions:
 
 ## Tests
 
+Run the deterministic, dataset-independent core tests with:
+
+```bash
+cd ~/ros2_ws
+colcon test --packages-select offline_lidar_slam \
+  --ctest-args -R test_synthetic_core --output-on-failure
+colcon test-result --verbose
+```
+
+`test_synthetic_core` uses generated points and a temporary YAML file to verify voxel filtering, WGS84-to-ENU conversion, configuration defaults, and configurable bag/topic overrides. It does not require a ROS bag or KITTI files.
+
+Run every test target with:
+
 ```bash
 cd ~/ros2_ws
 colcon test --packages-select offline_lidar_slam
@@ -223,6 +236,7 @@ colcon test-result --verbose
 The executable above is the normal way to run SLAM. The test targets are retained for development and regression checks. Several are integration/debugging programs rather than isolated unit tests and contain hard-coded input paths:
 
 - `test_slam` is the legacy end-to-end integration runner; new runs should use `offline_lidar_slam_node`.
+- `test_synthetic_core` contains deterministic tests with no external dataset.
 - `test_dataloader`, `test_lo`, and `test_fe` expect local KITTI/bag data.
 - `test_loop_closure_ndt` replays diagnostics from an earlier loop-closure attempt.
 - `test_ndt` contains scan-registration experiments using saved clouds.
