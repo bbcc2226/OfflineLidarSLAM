@@ -1,11 +1,16 @@
 cmake_minimum_required(VERSION 3.8)
 project(offline_lidar_slam)
 
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
+
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(-Wall -Wextra -Wpedantic)
 endif()
 
 find_package(ament_cmake REQUIRED)
+find_package(ament_index_cpp REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(rosbag2_cpp REQUIRED)
@@ -134,6 +139,20 @@ target_link_libraries(slam_process
   frontend dataloader common loop_closure_lib Eigen3::Eigen TBB::tbb ${PCL_LIBRARIES} g2o_core g2o_stuff g2o_types_slam3d g2o_solver_eigen fmt::fmt
 )
 
+# ---------------- executable ----------------
+add_executable(offline_lidar_slam_node
+  src/main.cpp
+)
+
+ament_target_dependencies(offline_lidar_slam_node
+  ament_index_cpp
+  rclcpp
+)
+
+target_link_libraries(offline_lidar_slam_node
+  slam_process
+)
+
 # ---------------- Tests ----------------
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
@@ -169,6 +188,16 @@ install(PROGRAMS
   script/associate_keyframes_images.py
   script/project_keyframes_to_image.py
   DESTINATION lib/${PROJECT_NAME}
+)
+
+install(TARGETS
+  offline_lidar_slam_node
+  DESTINATION lib/${PROJECT_NAME}
+)
+
+install(FILES
+  include/Config/Config.yaml
+  DESTINATION share/${PROJECT_NAME}/config
 )
 
 ament_package()
