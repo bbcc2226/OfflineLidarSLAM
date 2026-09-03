@@ -3,23 +3,40 @@
 <package format="3">
   <name>offline_lidar_slam</name>
   <version>0.0.0</version>
-  <description>TODO: Package description</description>
+  <description>Offline LiDAR-inertial SLAM with NDT/GICP odometry, ESKF state estimation, GPS constraints, loop closure, and pose-graph optimization.</description>
   <maintainer email="jibobo1017@gmail.com">root</maintainer>
   <license>TODO: License declaration</license>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
 
+  <build_depend>eigen3_cmake_module</build_depend>
+
+  <depend>ament_index_cpp</depend>
+  <depend>rclcpp</depend>
+  <depend>std_msgs</depend>
+  <depend>sensor_msgs</depend>
+  <depend>nav_msgs</depend>
+  <depend>geometry_msgs</depend>
+  <depend>rosbag2_cpp</depend>
+  <depend>rosbag2_storage</depend>
+  <depend>yaml_cpp_vendor</depend>
+  <depend>eigen</depend>
+  <depend>libpcl-all-dev</depend>
+  <depend>tbb</depend>
+  <depend>fmt</depend>
+  <depend>libg2o</depend>
+
+  <exec_depend>rclpy</exec_depend>
+  <exec_depend>rosbag2_py</exec_depend>
+  <exec_depend>sensor_msgs_py</exec_depend>
+  <exec_depend>python3-numpy</exec_depend>
+  <exec_depend>python3-pil</exec_depend>
+
+  <test_depend>ament_cmake_gtest</test_depend>
   <test_depend>ament_lint_auto</test_depend>
   <test_depend>ament_lint_common</test_depend>
-  <build_depend>ament_cmake_gtest</build_depend>
-  <test_depend>ament_cmake_gtest</test_depend>
-  <depend>rclcpp</depend>
-  <depend>sensor_msgs</depend>
-  <depend>ament_index_cpp</depend>
 
   <export>
     <build_type>ament_cmake</build_type>
-    <build_depend>eigen3_cmake_module</build_depend>
-    <exec_depend>eigen3_cmake_module</exec_depend>
   </export>
 </package>

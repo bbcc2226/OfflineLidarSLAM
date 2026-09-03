@@ -17,6 +17,7 @@ find_package(rosbag2_cpp REQUIRED)
 find_package(rosbag2_storage REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(nav_msgs REQUIRED)
+find_package(geometry_msgs REQUIRED)
 find_package(yaml-cpp REQUIRED)
 find_package(Eigen3 REQUIRED)
 find_package(TBB REQUIRED)
@@ -133,6 +134,7 @@ ament_target_dependencies(slam_process
   rclcpp
   sensor_msgs
   nav_msgs
+  geometry_msgs
 )
 
 target_link_libraries(slam_process

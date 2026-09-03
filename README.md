@@ -50,11 +50,30 @@ LiDAR messages must contain `x`, `y`, and `z` fields as 32-bit floats; an `inten
 ## Dependencies
 
 - CMake 3.8+ and a C++17-capable compiler
-- ROS 2: `ament_cmake`, `rclcpp`, `sensor_msgs`, `nav_msgs`, `rosbag2_cpp`, and `rosbag2_storage`
+- ROS 2: `ament_cmake`, `ament_index_cpp`, `rclcpp`, `std_msgs`, `sensor_msgs`, `nav_msgs`, `geometry_msgs`, `rosbag2_cpp`, and `rosbag2_storage`
 - Eigen3, PCL, oneTBB, yaml-cpp, fmt, and g2o
 - `ament_cmake_gtest`/GoogleTest when building tests
 
-The Python utilities additionally use some combination of `rclpy`, `rosbag2_py`, NumPy, Matplotlib, OpenCV, and Open3D.
+The installed Python utilities use `rclpy`, `rosbag2_py`, `sensor_msgs_py`, NumPy, and Pillow. Other non-installed visualization/debug scripts may additionally require Matplotlib, OpenCV, or Open3D.
+
+### Install dependencies
+
+From the workspace root, let `rosdep` install all dependencies declared by the package:
+
+```bash
+cd ~/ros2_ws
+source /opt/ros/<ros-distro>/setup.bash
+sudo rosdep init  # only needed once per machine
+rosdep update
+rosdep install --from-paths src --ignore-src -r -y
+```
+
+The relevant system packages include Eigen3, PCL, TBB, fmt, yaml-cpp, and g2o. On ROS 2 Humble, the g2o rosdep key resolves to `ros-humble-libg2o`. If your ROS distribution does not provide that package, install g2o from source and ensure its install prefix is present in `CMAKE_PREFIX_PATH`, or pass its package directory explicitly:
+
+```bash
+colcon build --packages-select offline_lidar_slam \
+  --cmake-args -Dg2o_DIR=/path/to/lib/cmake/g2o
+```
 
 ## Build
 
@@ -247,7 +266,6 @@ offline_lidar_slam/
 - Synchronization assumes ordered, overlapping streams and does not interpolate measurements.
 - The back end waits for GPS/LIO yaw alignment; this currently needs 50 paired samples and sufficient motion.
 - Saved PLY keyframes are required when constructing the voxel map.
-- `package.xml` is incomplete relative to CMake, so `rosdep` may not install everything.
 - Large bags can use substantial CPU, memory, and disk space.
 
 ## License
