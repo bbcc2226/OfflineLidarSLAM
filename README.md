@@ -2,7 +2,7 @@
 
 An offline ROS 2 LiDAR-inertial SLAM pipeline for recorded KITTI-style sensor data. It reads LiDAR, IMU, and GPS messages from a ROS 2 bag, estimates motion with NDT/GICP scan matching and an error-state Kalman filter, then builds a GPS-constrained pose graph with loop-closure correction.
 
-> **Status:** experimental/research code. The pipeline is currently built as libraries and run through the `test_slam` GoogleTest target. There is no installed ROS 2 executable or launch file yet, and several paths are hard-coded.
+> **Status:** experimental/research code. The package provides an installed ROS 2 executable, but several dataset paths and topic names remain configuration or source-code constants. There is no launch file yet.
 
 ## Pipeline
 
@@ -26,6 +26,7 @@ ROS 2 bag (SQLite3)
 
 Main components:
 
+- **`offline_lidar_slam_node`** (`src/main.cpp`) is the installed command-line entry point. It loads configuration, starts the pipeline, waits for completion, and handles `Ctrl+C` shutdown.
 - **`SensorDataPlayer`** reads the supported streams from an SQLite3 ROS 2 bag.
 - **`SlamFrontEnd`** buffers measurements, downsamples scans, runs odometry, and creates keyframes.
 - **`LidarOdodmetry`** estimates local motion using incremental NDT with optional GICP refinement.
@@ -44,7 +45,7 @@ The loader expects a ROS 2 **SQLite3** bag directory with these exact topics:
 | `/kitti/imu` | `sensor_msgs/msg/Imu` | ESKF prediction |
 | `/kitti/gps/fix` | `sensor_msgs/msg/NavSatFix` | ENU positions and graph constraints |
 
-LiDAR messages should contain `x`, `y`, `z`, and `intensity` fields as 32-bit floats. All streams must share a clock, have ordered timestamps, and overlap in time. Although GPS and IMU appear optional at the API level, the current synchronization logic requires both to advance before processing a LiDAR frame.
+LiDAR messages must contain `x`, `y`, and `z` fields as 32-bit floats; an `intensity` field is allowed but not required. Invalid (`NaN`/infinite) points are discarded. All streams must share a clock, have ordered timestamps, and overlap in time. Although GPS and IMU appear optional at the API level, the current synchronization logic requires both to advance before processing a LiDAR frame.
 
 ## Dependencies
 
@@ -110,15 +111,31 @@ FrontEnd:
   lio_dir_path: "./LIO_results"
 ```
 
-Also update the absolute path passed to `ConfigManager::Load(...)` in [`test/TestSlamProcess.cpp`](test/TestSlamProcess.cpp) so it points to this checkout's `Config.yaml`, then rebuild. Relative outputs are resolved from the directory where the executable is launched.
+The executable uses the installed copy of this file by default. After changing the source copy, rebuild the package so Colcon installs the new version. For experiments, passing a separate YAML file with `--config` avoids rebuilding for configuration-only changes.
+
+Relative bag and output paths are resolved from the directory where the executable is launched. Absolute paths are recommended for reproducible runs.
 
 ### 3. Start SLAM
 
-From the workspace root:
+Rebuild after changing source files, source the workspace, and run:
 
 ```bash
+cd ~/ros2_ws
+colcon build --packages-select offline_lidar_slam
 source install/setup.bash
-./build/offline_lidar_slam/test_slam --gtest_filter=SlamProcess.Test
+ros2 run offline_lidar_slam offline_lidar_slam_node
+```
+
+To load a configuration outside the installed package share directory:
+
+```bash
+ros2 run offline_lidar_slam offline_lidar_slam_node --config /absolute/path/to/Config.yaml
+```
+
+Show the command-line options with:
+
+```bash
+ros2 run offline_lidar_slam offline_lidar_slam_node --help
 ```
 
 The process exits after the bag is consumed and the back end drains its keyframe queue. Use `Ctrl+C` for early shutdown.
@@ -176,9 +193,9 @@ colcon test --packages-select offline_lidar_slam
 colcon test-result --verbose
 ```
 
-Several targets are integration/debugging programs rather than isolated unit tests and contain hard-coded input paths:
+The executable above is the normal way to run SLAM. The test targets are retained for development and regression checks. Several are integration/debugging programs rather than isolated unit tests and contain hard-coded input paths:
 
-- `test_slam` runs the complete bag-to-map pipeline.
+- `test_slam` is the legacy end-to-end integration runner; new runs should use `offline_lidar_slam_node`.
 - `test_dataloader`, `test_lo`, and `test_fe` expect local KITTI/bag data.
 - `test_loop_closure_ndt` replays diagnostics from an earlier loop-closure attempt.
 - `test_ndt` contains scan-registration experiments using saved clouds.
@@ -206,7 +223,9 @@ python3 script/project_keyframes_to_image.py --help
 offline_lidar_slam/
 ├── include/                # Interfaces, config, publishers, bundled Sophus headers
 │   └── Config/Config.yaml  # Runtime configuration
-├── src/                    # Front end, odometry, ESKF, optimization, and mapping
+├── src/
+│   ├── main.cpp            # Installed offline_lidar_slam_node entry point
+│   └── ...                 # Front end, odometry, ESKF, optimization, and mapping
 ├── script/                 # Conversion, visualization, and debugging tools
 ├── test/                   # Unit, integration, and replay/debug tests
 ├── CMakeLists.txt
@@ -216,7 +235,7 @@ offline_lidar_slam/
 ## Known limitations
 
 - Topic names, bag storage type, conversion paths, and several test paths are hard-coded.
-- The pipeline is not exposed through `ros2 run` or a launch file.
+- The package does not yet provide a ROS 2 launch file.
 - Synchronization assumes ordered, overlapping streams and does not interpolate measurements.
 - The back end waits for GPS/LIO yaw alignment; this currently needs 50 paired samples and sufficient motion.
 - Saved PLY keyframes are required when constructing the voxel map.
