@@ -56,9 +56,11 @@ struct LidarOdometryConfig{
 struct DataLoaderConfig{
     bool remove_groud = true;
     double kitti_groud_height = -1.0;
-    //std::string ros_bag_path = "/root/ros2_ws/2011_09_26_drive_0035_extract_bag";
     std::string ros_bag_path = "/root/ros2_ws/2011_10_03_drive_0027_bag";
-    
+    std::string storage_id = "sqlite3";
+    std::string lidar_topic = "/kitti/velodyne_points";
+    std::string imu_topic = "/kitti/imu";
+    std::string gps_topic = "/kitti/gps/fix";
 };
 
 struct OptimizerConfig{
@@ -105,6 +107,5 @@ struct Config{
     GeneralConfig General_;
     LoopClosureConfig LoopClosure_;
 };
-
 
 

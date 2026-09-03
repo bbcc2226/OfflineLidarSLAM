@@ -3,11 +3,15 @@
 
 #include <cmath>
 
-    SensorDataPlayer::SensorDataPlayer(const std::string& input_data_path): data_path_(input_data_path){
+    SensorDataPlayer::SensorDataPlayer(const std::string& input_data_path)
+        : data_path_(input_data_path),
+          imu_topic_(ConfigManager::Get().DataLoader_.imu_topic),
+          gps_topic_(ConfigManager::Get().DataLoader_.gps_topic),
+          lidar_topic_(ConfigManager::Get().DataLoader_.lidar_topic) {
         // Setup ROS bag reader
         rosbag2_storage::StorageOptions storage_options;
         storage_options.uri = data_path_;
-        storage_options.storage_id = "sqlite3";
+        storage_options.storage_id = ConfigManager::Get().DataLoader_.storage_id;
 
         rosbag2_cpp::ConverterOptions converter_options;
         converter_options.input_serialization_format = "cdr";
@@ -130,7 +134,6 @@
             gps_cb_(gps_data);
         }
     }
-
 
 
 

@@ -86,6 +86,10 @@ Config ConfigLoader::Load(const std::string& file_path) {
         cfg.DataLoader_.remove_groud = getOrDefault(data_loader, "remove_groud", cfg.DataLoader_.remove_groud);
         cfg.DataLoader_.kitti_groud_height = getOrDefault(data_loader, "kitti_groud_height", cfg.DataLoader_.kitti_groud_height);
         cfg.DataLoader_.ros_bag_path = getOrDefault(data_loader, "ros_bag_path", cfg.DataLoader_.ros_bag_path);
+        cfg.DataLoader_.storage_id = getOrDefault(data_loader, "storage_id", cfg.DataLoader_.storage_id);
+        cfg.DataLoader_.lidar_topic = getOrDefault(data_loader, "lidar_topic", cfg.DataLoader_.lidar_topic);
+        cfg.DataLoader_.imu_topic = getOrDefault(data_loader, "imu_topic", cfg.DataLoader_.imu_topic);
+        cfg.DataLoader_.gps_topic = getOrDefault(data_loader, "gps_topic", cfg.DataLoader_.gps_topic);
     }
 
     if(root["General"]){

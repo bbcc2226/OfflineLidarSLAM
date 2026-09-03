@@ -48,6 +48,10 @@ DataLoader:
   remove_groud: true
   kitti_groud_height: -1.0
   ros_bag_path: "/root/ros2_ws/2011_10_03_drive_0027_bag"
+  storage_id: "sqlite3"
+  lidar_topic: "/kitti/velodyne_points"
+  imu_topic: "/kitti/imu"
+  gps_topic: "/kitti/gps/fix"
 
 General:
   map_voxel_resolution: 0.45

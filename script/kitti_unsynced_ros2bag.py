@@ -1,3 +1,4 @@
+import argparse
 import os
 import numpy as np
 from datetime import datetime
@@ -124,21 +125,36 @@ def read_velodyne_txt(velo_dir):
 # Main
 # ============================================================
 
-def main():
-    rclpy.init()
+def parse_args():
+    parser = argparse.ArgumentParser(
+        description="Convert KITTI OXTS and Velodyne text data to a ROS 2 bag."
+    )
+    parser.add_argument(
+        "dataset_root",
+        help="KITTI drive directory containing oxts/ and velodyne_points/.",
+    )
+    parser.add_argument("output_bag", help="Output ROS 2 bag directory.")
+    parser.add_argument("--storage-id", default="sqlite3")
+    parser.add_argument("--imu-topic", default="/kitti/imu")
+    parser.add_argument("--gps-topic", default="/kitti/gps/fix")
+    parser.add_argument("--lidar-topic", default="/kitti/velodyne_points")
+    return parser.parse_args()
 
-    bag_path = "2011_10_03_drive_0027_bag"
+
+def main():
+    args = parse_args()
+    rclpy.init()
 
     writer = SequentialWriter()
     writer.open(
-        StorageOptions(uri=bag_path, storage_id="sqlite3"),
+        StorageOptions(uri=args.output_bag, storage_id=args.storage_id),
         ConverterOptions("", "")
     )
 
     # ---------- Create topics ----------
     writer.create_topic(
         TopicMetadata(
-            name="/kitti/imu",
+            name=args.imu_topic,
             type="sensor_msgs/msg/Imu",
             serialization_format="cdr"
         )
@@ -146,7 +162,7 @@ def main():
 
     writer.create_topic(
         TopicMetadata(
-            name="/kitti/gps/fix",
+            name=args.gps_topic,
             type="sensor_msgs/msg/NavSatFix",
             serialization_format="cdr"
         )
@@ -154,29 +170,28 @@ def main():
 
     writer.create_topic(
         TopicMetadata(
-            name="/kitti/velodyne_points",
+            name=args.lidar_topic,
             type="sensor_msgs/msg/PointCloud2",
             serialization_format="cdr"
         )
     )
 
     # ---------- Paths ----------
-    base_dir = "./data/2011_10_03_drive_0027"
-    oxts_dir = os.path.join(base_dir, "oxts")
-    velo_dir = os.path.join(base_dir, "velodyne_points")
+    oxts_dir = os.path.join(args.dataset_root, "oxts")
+    velo_dir = os.path.join(args.dataset_root, "velodyne_points")
 
     # ---------- Write IMU + GPS ----------
     for imu, gps, t in read_oxts(oxts_dir):
         #print("imu gps {}".format(t))
-        writer.write("/kitti/imu", serialize_message(imu), t)
-        writer.write("/kitti/gps/fix", serialize_message(gps), t)
+        writer.write(args.imu_topic, serialize_message(imu), t)
+        writer.write(args.gps_topic, serialize_message(gps), t)
 
     # ---------- Write LiDAR ----------
     for cloud, t in read_velodyne_txt(velo_dir):
         #print(t)
-        writer.write("/kitti/velodyne_points", serialize_message(cloud), t)
+        writer.write(args.lidar_topic, serialize_message(cloud), t)
 
-    print("✅ Unsynced KITTI ROS2 bag created:", bag_path)
+    print("✅ Unsynced KITTI ROS 2 bag created:", args.output_bag)
     rclpy.shutdown()
 
 

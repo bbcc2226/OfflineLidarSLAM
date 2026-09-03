@@ -81,9 +81,9 @@ private:
     std::unique_ptr<rclcpp::Serialization<sensor_msgs::msg::NavSatFix>> gps_serializer_;
     std::unique_ptr<rclcpp::Serialization<sensor_msgs::msg::PointCloud2>> lidar_serializer_;
     
-    const std::string imu_topic_ {"/kitti/imu"};
-    const std::string gps_topic_ {"/kitti/gps/fix"};
-    const std::string lidar_topic_ {"/kitti/velodyne_points"};
+    std::string imu_topic_;
+    std::string gps_topic_;
+    std::string lidar_topic_;
 
     std::atomic<bool> hold_ {false};
     std::atomic<bool> stop_ {false}; 

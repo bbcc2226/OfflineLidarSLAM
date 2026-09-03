@@ -2,7 +2,7 @@
 
 An offline ROS 2 LiDAR-inertial SLAM pipeline for recorded KITTI-style sensor data. It reads LiDAR, IMU, and GPS messages from a ROS 2 bag, estimates motion with NDT/GICP scan matching and an error-state Kalman filter, then builds a GPS-constrained pose graph with loop-closure correction.
 
-> **Status:** experimental/research code. The package provides an installed ROS 2 executable, but several dataset paths and topic names remain configuration or source-code constants. There is no launch file yet.
+> **Status:** experimental/research code. The package provides an installed ROS 2 executable and configurable input topics, but some development tests still contain local paths. There is no launch file yet.
 
 ## Pipeline
 
@@ -37,7 +37,7 @@ Main components:
 
 ## Input data
 
-The loader expects a ROS 2 **SQLite3** bag directory with these exact topics:
+The default configuration expects a ROS 2 **SQLite3** bag directory with these topics:
 
 | Topic | Message type | Purpose |
 |---|---|---|
@@ -92,12 +92,16 @@ data/<drive>/
     └── timestamps.txt
 ```
 
-The converter defines `base_dir` and `bag_path` inside `main()`. Edit those values, then run:
+Run the converter with the KITTI drive directory and desired output bag path:
 
 ```bash
 cd ~/ros2_ws/src/offline_lidar_slam
-python3 script/kitti_unsynced_ros2bag.py
+python3 script/kitti_unsynced_ros2bag.py \
+  ./data/2011_10_03_drive_0027 \
+  /absolute/path/to/2011_10_03_drive_0027_bag
 ```
+
+Use `--imu-topic`, `--gps-topic`, `--lidar-topic`, or `--storage-id` when creating a bag with non-default names or storage.
 
 ### 2. Configure the run
 
@@ -106,6 +110,10 @@ Edit [`include/Config/Config.yaml`](include/Config/Config.yaml), at minimum repl
 ```yaml
 DataLoader:
   ros_bag_path: "/absolute/path/to/bag_directory"
+  storage_id: "sqlite3"
+  lidar_topic: "/kitti/velodyne_points"
+  imu_topic: "/kitti/imu"
+  gps_topic: "/kitti/gps/fix"
 
 FrontEnd:
   lio_dir_path: "./LIO_results"
@@ -234,7 +242,7 @@ offline_lidar_slam/
 
 ## Known limitations
 
-- Topic names, bag storage type, conversion paths, and several test paths are hard-coded.
+- Several development tests still contain hard-coded dataset or `/tmp` paths.
 - The package does not yet provide a ROS 2 launch file.
 - Synchronization assumes ordered, overlapping streams and does not interpolate measurements.
 - The back end waits for GPS/LIO yaw alignment; this currently needs 50 paired samples and sufficient motion.
