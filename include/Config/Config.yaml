@@ -25,21 +25,21 @@ GeoConverter:
 
 LidarOdometry:
   voxel_resolution: 0.5
-  voxel_resolution_x: 0.5
-  voxel_resolution_y: 0.5
-  voxel_resolution_z: 0.5
+  voxel_resolution_x: 0.1
+  voxel_resolution_y: 0.1
+  voxel_resolution_z: 0.1
   ndt_resolution: 1.0
-  ndt_resolution_x: 1.0
-  ndt_resolution_y: 1.0
-  ndt_resolution_z: 1.0
-  scan_matching_use_gicp_fine_alignment: false
+  ndt_resolution_x: 0.5
+  ndt_resolution_y: 0.5
+  ndt_resolution_z: 0.5
+  scan_matching_use_gicp_fine_alignment: true
   scan_matching_gicp_max_correspondence_dist: 0.3
   scan_matching_gicp_max_iter: 10
   scan_matching_gicp_transform_epsilon: 1.0e-2
   scan_matching_gicp_fitness_epsilon: 1.0e-2
-  lidar_x_range: 25.0
-  lidar_y_range: 25.0
-  lidar_z_range: 5.0
+  lidar_x_range: 4.0
+  lidar_y_range: 4.0
+  lidar_z_range: 4.0
   reject_large_pose_jump: true
   max_pose_jump_translation: 0.3
   max_pose_jump_rotation_deg: 0.3
@@ -47,8 +47,8 @@ LidarOdometry:
 DataLoader:
   remove_groud: false
   kitti_groud_height: -1.0
-  skip_frames: 400
-  ros_bag_path: "/root/ros2_ws/data/roof"
+  skip_frames: 0
+  ros_bag_path: "/root/ros2_ws/data/8_24"
 
 General:
   map_voxel_resolution: 0.1

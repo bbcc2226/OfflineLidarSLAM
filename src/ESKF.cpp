@@ -3,7 +3,6 @@
 #include <iostream>
 #include <Eigen/Dense>
 
-
 struct ESKF::Impl{
     bool initialized_{false};
     double timestamp_ {0.0};

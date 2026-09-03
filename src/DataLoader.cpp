@@ -116,7 +116,7 @@
             //remove the ground
             if(*iter_z <= -0.7 && ConfigManager::Get().DataLoader_.remove_groud) continue;
             //remove the prettry close points
-            if(std::sqrt((*iter_x) * (*iter_x) + (*iter_y) * (*iter_y) + (*iter_z) * (*iter_z)) < 1.5) continue;
+            if(std::sqrt((*iter_x) * (*iter_x) + (*iter_y) * (*iter_y) + (*iter_z) * (*iter_z)) < 0.5) continue;
             lidar_cloud->pt_list_.emplace_back(Point3D{*iter_x, *iter_y, *iter_z});
         }
         if(lidar_cb_){
