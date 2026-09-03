@@ -1,6 +1,8 @@
 #include "DataLoader.hpp"
 #include "ConfigManager.hpp"
 
+#include <cmath>
+
     SensorDataPlayer::SensorDataPlayer(const std::string& input_data_path): data_path_(input_data_path){
         // Setup ROS bag reader
         rosbag2_storage::StorageOptions storage_options;
@@ -98,23 +100,19 @@
         lidar_cloud->timestamp_ = cloud_msg.header.stamp.sec + cloud_msg.header.stamp.nanosec * 1e-9;
         // std::cout<<std::setprecision(15)<<"lidar: "<<lidar_cloud->timestamp_<<std::endl;
 
-        // Check if intensity exists
-        bool has_intensity = false;
-        for (const auto &field : cloud_msg.fields) {
-            if (field.name == "intensity") {
-                has_intensity = true;
-                break;
-            }
-        }
-
         sensor_msgs::PointCloud2ConstIterator<float> iter_x(cloud_msg, "x");
         sensor_msgs::PointCloud2ConstIterator<float> iter_y(cloud_msg, "y");
         sensor_msgs::PointCloud2ConstIterator<float> iter_z(cloud_msg, "z");
-        sensor_msgs::PointCloud2ConstIterator<float> iter_i(cloud_msg, "intensity"); // if exists
 
-        for (; iter_x != iter_x.end(); ++iter_x, ++iter_y, ++iter_z, ++iter_i) {
-            //remove the ground
-            if(*iter_z <= -1.0 && ConfigManager::Get().DataLoader_.remove_groud) continue;
+        const auto& config = ConfigManager::Get().DataLoader_;
+        for (; iter_x != iter_x.end(); ++iter_x, ++iter_y, ++iter_z) {
+            if (!std::isfinite(*iter_x) || !std::isfinite(*iter_y) ||
+                !std::isfinite(*iter_z)) {
+                continue;
+            }
+            if (config.remove_groud && *iter_z <= config.kitti_groud_height) {
+                continue;
+            }
             lidar_cloud->pt_list_.emplace_back(Point3D{*iter_x, *iter_y, *iter_z});
         }
         if(lidar_cb_){
@@ -132,7 +130,6 @@
             gps_cb_(gps_data);
         }
     }
-
 
 
 
