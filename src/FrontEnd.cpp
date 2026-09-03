@@ -39,6 +39,11 @@ struct RTKYawAlignment{
         }
         rtk_pos_list_.push_back(rtk_pos);
         lio_pos_list_.push_back(lio_pos);
+        constexpr size_t kAlignmentWindowSize = 50;
+        if (rtk_pos_list_.size() > kAlignmentWindowSize) {
+            rtk_pos_list_.pop_front();
+            lio_pos_list_.pop_front();
+        }
         TryEstimate();
         
     }
@@ -116,8 +121,8 @@ private:
     EndFrontEndCallback fe_cb_;
     
     int cloud_id_ {0};
-    double latest_imu_timestamp_{0.0};
-    double latest_gps_timestamp_{0.0};
+    std::atomic<double> latest_imu_timestamp_{0.0};
+    std::atomic<double> latest_gps_timestamp_{0.0};
 
     std::mutex buffer_mtx_;
     std::mutex lidar_process_mtx_;
@@ -244,14 +249,16 @@ void SlamFrontEnd::Impl::PushImuData(std::shared_ptr<IMUdata> imu_data){
     //std::cout<<"receive new IMU data \n";
     std::lock_guard<std::mutex> lock(buffer_mtx_);
     imu_buffer_.push_back(imu_data);
-    latest_imu_timestamp_ = std::max(latest_imu_timestamp_,imu_data->timestamp_);
+    latest_imu_timestamp_.store(
+        std::max(latest_imu_timestamp_.load(), imu_data->timestamp_));
 }
 
 void SlamFrontEnd::Impl::PushGPSData(std::shared_ptr<GPSdata> gps_data){
     //std::cout<<"receive new GPS data \n";
     std::lock_guard<std::mutex> lock(buffer_mtx_);
     gps_buffer_.push_back(gps_data);
-    latest_gps_timestamp_ = std::max(latest_gps_timestamp_,gps_data->timestamp_);
+    latest_gps_timestamp_.store(
+        std::max(latest_gps_timestamp_.load(), gps_data->timestamp_));
 }
 
 void SlamFrontEnd::Impl::MonitorStatus(){
@@ -310,8 +317,8 @@ void SlamFrontEnd::Impl::ProcessSensorData(){
             if(!cloud_pq_.empty()){
                 curr_comb = cloud_pq_.top();
                 if(curr_comb.frame_id_ == expected_lidar_id && 
-                    curr_comb.timestamp_ <= latest_imu_timestamp_&&
-                    curr_comb.timestamp_ <= latest_gps_timestamp_){
+                    curr_comb.timestamp_ <= latest_imu_timestamp_.load() &&
+                    curr_comb.timestamp_ <= latest_gps_timestamp_.load()) {
                     cloud_pq_.pop();
                     expected_lidar_id += 1;
                     cloud_pq_size_--;
@@ -403,7 +410,7 @@ void SlamFrontEnd::Impl::ProcessSensorData(){
             //     <<" "<<gps_wait_for_processing.size()<<" "<<latest_imu_timestamp_<<"\n";
         }else if(curr_comb.frame_id_ > 20){
             std::cout<<"!!!!! "<<curr_comb.frame_id_<<" "<<curr_comb.timestamp_<<" "<<imu_wait_for_processing.size()
-                <<" "<<gps_wait_for_processing.size()<<" "<<latest_imu_timestamp_<<"\n";
+                <<" "<<gps_wait_for_processing.size()<<" "<<latest_imu_timestamp_.load()<<"\n";
             Se3 pred_state;
             std::pair<int,Se3> est_pose = lo_.AddCloud(curr_comb.filtered_cloud_,curr_comb.raw_cloud_,pred_state,true);
             state_estimator_.MeasurementUpdateLidar(est_pose.second,curr_comb.timestamp_);
@@ -456,13 +463,15 @@ std::string SlamFrontEnd::Impl::SaveLIOFrame(Se3& global_pose,const std::shared_
         if(ConfigManager::Get().General_.filter_saved_cloud){
             saved_cloud = ApplyRangeFilter(cloud);
             //converted_cloud = ApplyTransform(global_pose,filter_cloud);
+        } else {
+            saved_cloud = cloud;
         }
         // else{
         //     converted_cloud = ApplyTransform(global_pose,cloud);
         // }
         fs::path dir = ConfigManager::Get().FrontEnd_.lio_dir_path;
         if (!fs::exists(dir)) {
-            if (fs::create_directory(dir)) {
+            if (fs::create_directories(dir)) {
                 std::cout << "Directory created\n";
             } else {
                 std::cout << "Failed to create directory\n";
