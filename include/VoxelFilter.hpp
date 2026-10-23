@@ -15,6 +15,7 @@ private:
     double z_range_ {ConfigManager::Get().LidarOdometry_.lidar_z_range};
     struct Accumulator {
         Eigen::Vector3d sum = Eigen::Vector3d::Zero();
+        double intensity_sum = 0.0;
         int count = 0;
     };
 
@@ -59,10 +60,13 @@ public:
 
             auto& acc = voxel_map[key];
             acc.sum += Eigen::Vector3d(p[0], p[1], p[2]);
+            acc.intensity_sum += p.intensity_;
             acc.count++;
         }
 
         auto output_ptr = std::make_shared<PointCloud>();
+        output_ptr->timestamp_ = input_ptr->timestamp_;
+        output_ptr->has_intensity_ = input_ptr->has_intensity_;
         output_ptr->pt_list_.reserve(voxel_map.size());
         for (const auto& [_, acc] : voxel_map) {
             Eigen::Vector3d c = acc.sum / acc.count;
@@ -70,6 +74,7 @@ public:
             p[0] = c.x();
             p[1] = c.y();
             p[2] = c.z();
+            p.intensity_ = acc.intensity_sum / acc.count;
             output_ptr->pt_list_.push_back(p);
         }
 

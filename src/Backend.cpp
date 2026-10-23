@@ -11,7 +11,7 @@
 Backend::Backend()
     : voxel_map_(ConfigManager::Get().General_.map_voxel_resolution) {
     map_pub_thread_ = std::thread(&Backend::PublishMap, this);
-    local_graph_optimization_thread_ = std::thread(&Backend::LocalGraphOptimization, this);
+    local_graph_optimization_thread_ = std::thread(&Backend::GlobalLoopClosureOptimization, this);
 }
 
 Backend::~Backend() {
@@ -51,6 +51,166 @@ bool Backend::IsFinished() const {
     return stop_ && local_graph_done_ && pending_keyframes_.load(std::memory_order_relaxed) == 0;
 }
 
+void Backend::GlobalLoopClosureOptimization() {
+    local_graph_done_ = false;
+    int previous_frame_id = -1;
+
+    auto refresh_map_and_path = [this]() {
+        voxel_map_.Clear();
+
+        std::vector<std::pair<int, Se3>> optimized_poses;
+        std::unordered_map<int, Se3> poses_by_id;
+        optimized_poses.reserve(loop_closure_anchor_map_.size());
+
+        for (const auto& [frame_id, vertex] : loop_closure_anchor_map_) {
+            const auto& estimate = vertex->estimate();
+            const Se3 pose(estimate.rotation(), estimate.translation());
+            optimized_poses.emplace_back(frame_id, pose);
+            poses_by_id.emplace(frame_id, pose);
+        }
+
+        std::sort(optimized_poses.begin(), optimized_poses.end(),
+                  [](const auto& lhs, const auto& rhs) {
+                      return lhs.first < rhs.first;
+                  });
+
+        loop_closure_detector_.UpdateKeyFramePoses(poses_by_id);
+        tools::RewriteKeyFramesToJson(
+            poses_by_id, key_frame_info_map_, keyframe_json_output_path_);
+
+        std::vector<Vec3> path_positions;
+        path_positions.reserve(optimized_poses.size());
+        for (const auto& [frame_id, pose] : optimized_poses) {
+            const auto key_frame_it = key_frame_info_map_.find(frame_id);
+            if (key_frame_it == key_frame_info_map_.end()) {
+                std::cerr << "Missing keyframe metadata for frame "
+                          << frame_id << "\n";
+                continue;
+            }
+
+            auto cloud = std::make_shared<PointCloud>();
+            if (!LoadPLY(key_frame_it->second->saved_frame_path_, cloud)) {
+                std::cerr << "Failed to rebuild map from "
+                          << key_frame_it->second->saved_frame_path_ << "\n";
+                continue;
+            }
+
+            voxel_map_.InsertCloud(
+                *cloud, pose, key_frame_it->second->timestamp_, frame_id);
+            path_positions.push_back(pose.translation());
+        }
+
+        voxel_map_.RemoveSparseVoxels();
+        path_publisher_.RefreshPath(path_positions);
+    };
+
+    while (true) {
+        std::unique_lock<std::mutex> lock(key_frame_queue_mtx_);
+        key_frame_queue_cv_.wait(
+            lock, [this] { return !key_frame_queue_.empty() || stop_; });
+        if (stop_ && key_frame_queue_.empty()) {
+            break;
+        }
+
+        auto key_frame = key_frame_queue_.front();
+        key_frame_queue_.pop();
+        pending_keyframes_.fetch_sub(1, std::memory_order_relaxed);
+        lock.unlock();
+
+        const int current_frame_id = key_frame->key_frame_id_;
+        key_frame_info_map_[current_frame_id] = key_frame;
+
+        Se3 initial_pose = key_frame->lio_pose_;
+        Se3 relative_pose;
+        if (previous_frame_id != -1) {
+            const auto previous_key_frame_it =
+                key_frame_info_map_.find(previous_frame_id);
+            const auto previous_vertex_it =
+                loop_closure_anchor_map_.find(previous_frame_id);
+            if (previous_key_frame_it == key_frame_info_map_.end() ||
+                previous_vertex_it == loop_closure_anchor_map_.end()) {
+                std::cerr << "Missing previous graph state for keyframe "
+                          << previous_frame_id << "\n";
+                continue;
+            }
+
+            relative_pose =
+                previous_key_frame_it->second->lio_pose_.inverse() *
+                key_frame->lio_pose_;
+            const auto& previous_estimate =
+                previous_vertex_it->second->estimate();
+            const Se3 previous_optimized_pose(
+                previous_estimate.rotation(),
+                previous_estimate.translation());
+            initial_pose = previous_optimized_pose * relative_pose;
+        }
+
+        const g2o::SE3Quat initial_g2o(
+            Eigen::Quaterniond(initial_pose.rotationMatrix()),
+            initial_pose.translation());
+        auto* current_vertex =
+            global_optimizer_.AddPose(initial_g2o, previous_frame_id == -1);
+        loop_closure_anchor_map_[current_frame_id] = current_vertex;
+
+        if (previous_frame_id != -1) {
+            const g2o::SE3Quat relative_g2o(
+                Eigen::Quaterniond(relative_pose.rotationMatrix()),
+                relative_pose.translation());
+            global_optimizer_.AddLIOEdge(
+                loop_closure_anchor_map_.at(previous_frame_id),
+                current_vertex,
+                relative_g2o);
+        }
+
+        key_frame->optimized_pose_ = {true, initial_pose};
+        loop_closure_detector_.AddKeyFrame(key_frame);
+
+        const auto loop_closure_edge = loop_closure_detector_.DetectLoop();
+        if (loop_closure_edge.first != -1) {
+            const int history_frame_id = loop_closure_edge.first;
+            const auto history_vertex_it =
+                loop_closure_anchor_map_.find(history_frame_id);
+            if (history_vertex_it == loop_closure_anchor_map_.end()) {
+                std::cerr << "Loop closure references unknown frame "
+                          << history_frame_id << "\n";
+            } else {
+                const Se3& loop_relative_pose = loop_closure_edge.second;
+                const g2o::SE3Quat relative_g2o(
+                    Eigen::Quaterniond(loop_relative_pose.rotationMatrix()),
+                    loop_relative_pose.translation());
+                global_optimizer_.AddLoopClosureEdge(
+                    history_vertex_it->second, current_vertex, relative_g2o);
+                global_optimizer_.Optimize(
+                    ConfigManager::Get().Optimizer_.global_iterations);
+                loop_closure_detector_.SetLastKFId(current_frame_id);
+                std::cout << "Global LO graph optimized after loop closure: "
+                          << current_frame_id << " -> "
+                          << history_frame_id << "\n";
+                refresh_map_and_path();
+            }
+        } else {
+            auto cloud = std::make_shared<PointCloud>();
+            if (LoadPLY(key_frame->saved_frame_path_, cloud)) {
+                voxel_map_.InsertCloud(
+                    *cloud, initial_pose, key_frame->timestamp_, current_frame_id);
+                path_publisher_.AddPathPoint(initial_pose.translation());
+            } else {
+                std::cerr << "Failed to add keyframe cloud "
+                          << key_frame->saved_frame_path_ << "\n";
+            }
+            tools::RecordKeyFrameToJson(
+                current_frame_id,
+                initial_pose,
+                key_frame_info_map_,
+                keyframe_json_output_path_);
+        }
+
+        previous_frame_id = current_frame_id;
+    }
+
+    local_graph_done_ = true;
+}
+
 void Backend::PublishMap() {
     while (!IsFinished()) {
         auto updated_map = voxel_map_.GetPointCloud();
@@ -67,7 +227,7 @@ void Backend::LocalGraphOptimization() {
     std::unordered_set<int> processed_map_frame_id;
     Se3 corrected_pose(Eigen::Matrix3d::Identity(), Eigen::Vector3d::Zero());
     std::unordered_map<int, Se3> post_loop_closure_poses;
-    const bool using_lio_only = true;
+    const bool using_LO_only = true;
 
     while (true) {
         std::unique_lock<std::mutex> lock(key_frame_queue_mtx_);
@@ -88,12 +248,12 @@ void Backend::LocalGraphOptimization() {
         frame_id_collections.push_back(current_frame_id);
         key_frame_info_map_[current_frame_id] = key_frame;
 
-        if (using_lio_only) {
+        if (using_LO_only) {
             if (processed_map_frame_id.find(current_frame_id) == processed_map_frame_id.end()) {
                 processed_map_frame_id.insert(current_frame_id);
-                std::vector<Vec3> curr_point_cloud;
+                auto curr_point_cloud = std::make_shared<PointCloud>();
                 LoadPLY(key_frame->saved_frame_path_, curr_point_cloud);
-                voxel_map_.InsertCloud(curr_point_cloud, key_frame->lio_pose_, key_frame->timestamp_, current_frame_id);
+                voxel_map_.InsertCloud(*curr_point_cloud, key_frame->lio_pose_, key_frame->timestamp_, current_frame_id);
                 //voxel_map_.RemoveSparseVoxels();
                 path_publisher_.AddPathPoint(key_frame->lio_pose_.translation());
                 tools::RecordKeyFrameToJson(current_frame_id, key_frame->lio_pose_, key_frame_info_map_, keyframe_json_output_path_);
@@ -207,9 +367,9 @@ void Backend::LocalGraphOptimization() {
                 return;
             }
             const auto key_frame_info = key_frame_info_map_[key_frame_id];
-            std::vector<Vec3> curr_point_cloud;
+            auto curr_point_cloud = std::make_shared<PointCloud>();
             LoadPLY(key_frame_info->saved_frame_path_, curr_point_cloud);
-            voxel_map_.InsertCloud(curr_point_cloud, optimized_pose, key_frame_info->timestamp_, key_frame_id);
+            voxel_map_.InsertCloud(*curr_point_cloud, optimized_pose, key_frame_info->timestamp_, key_frame_id);
             voxel_map_.RemoveSparseVoxels();
             path_publisher_.AddPathPoint(optimized_pose.translation());
             path_publisher_.AddRTKPathPoint(key_frame_info->rtk_pos_,
@@ -238,9 +398,9 @@ void Backend::LocalGraphOptimization() {
             for (auto& [frame_id, pose] : sorted_optimized) {
                 processed_map_frame_id.insert(frame_id);
                 const auto key_frame_info = key_frame_info_map_[frame_id];
-                std::vector<Vec3> curr_point_cloud;
+                auto curr_point_cloud = std::make_shared<PointCloud>();
                 LoadPLY(key_frame_info->saved_frame_path_, curr_point_cloud);
-                voxel_map_.InsertCloud(curr_point_cloud, pose, key_frame_info->timestamp_, frame_id);
+                voxel_map_.InsertCloud(*curr_point_cloud, pose, key_frame_info->timestamp_, frame_id);
             }
             voxel_map_.RemoveSparseVoxels();
 
@@ -266,7 +426,7 @@ void Backend::LocalGraphOptimization() {
             processed_frame_id = active_frame_ids[0];
             const Se3 se3_pose(oldest->estimate().rotation(), oldest->estimate().translation());
             tools::RecordKeyFrameToJson(processed_frame_id, se3_pose, key_frame_info_map_, keyframe_json_output_path_);
-            if (ConfigManager::Get().General_.using_LIO_only) {
+            if (ConfigManager::Get().General_.using_LO_only) {
                 UpdateVoxelMap(processed_frame_id, key_frame_info_map_[processed_frame_id]->lio_pose_);
             } else {
                 UpdateVoxelMap(processed_frame_id, se3_pose);

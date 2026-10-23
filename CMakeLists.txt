@@ -153,7 +153,7 @@ if(BUILD_TESTING)
   target_link_libraries(test_lo NDT_lib LO_lib common Eigen3::Eigen TBB::tbb ${PCL_LIBRARIES})
 
   ament_add_gtest(test_loop_closure_ndt test/TestLoopClosureNDT.cpp)
-  target_link_libraries(test_loop_closure_ndt LO_lib NDT_lib common Config_lib Eigen3::Eigen TBB::tbb ${PCL_LIBRARIES})
+  target_link_libraries(test_loop_closure_ndt loop_closure_lib LO_lib NDT_lib common Config_lib Eigen3::Eigen TBB::tbb ${PCL_LIBRARIES})
 
   ament_add_gtest(test_fe test/TestFrontEnd.cpp)
   target_link_libraries(test_fe frontend)

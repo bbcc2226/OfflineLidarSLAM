@@ -110,14 +110,22 @@
         sensor_msgs::PointCloud2ConstIterator<float> iter_x(cloud_msg, "x");
         sensor_msgs::PointCloud2ConstIterator<float> iter_y(cloud_msg, "y");
         sensor_msgs::PointCloud2ConstIterator<float> iter_z(cloud_msg, "z");
-        sensor_msgs::PointCloud2ConstIterator<float> iter_i(cloud_msg, "intensity"); // if exists
 
-        for (; iter_x != iter_x.end(); ++iter_x, ++iter_y, ++iter_z, ++iter_i) {
-            //remove the ground
-            if(*iter_z <= -0.7 && ConfigManager::Get().DataLoader_.remove_groud) continue;
-            //remove the prettry close points
-            if(std::sqrt((*iter_x) * (*iter_x) + (*iter_y) * (*iter_y) + (*iter_z) * (*iter_z)) < 0.5) continue;
-            lidar_cloud->pt_list_.emplace_back(Point3D{*iter_x, *iter_y, *iter_z});
+        if (has_intensity) {
+            sensor_msgs::PointCloud2ConstIterator<float> iter_i(cloud_msg, "intensity");
+            lidar_cloud->has_intensity_ = true;
+            for (; iter_x != iter_x.end(); ++iter_x, ++iter_y, ++iter_z, ++iter_i) {
+                if(*iter_z <= -0.7 && ConfigManager::Get().DataLoader_.remove_groud) continue;
+                if(std::sqrt((*iter_x) * (*iter_x) + (*iter_y) * (*iter_y) + (*iter_z) * (*iter_z)) < 0.5) continue;
+                lidar_cloud->pt_list_.emplace_back(
+                    Point3D{{*iter_x, *iter_y, *iter_z}, static_cast<double>(*iter_i)});
+            }
+        } else {
+            for (; iter_x != iter_x.end(); ++iter_x, ++iter_y, ++iter_z) {
+                if(*iter_z <= -0.7 && ConfigManager::Get().DataLoader_.remove_groud) continue;
+                if(std::sqrt((*iter_x) * (*iter_x) + (*iter_y) * (*iter_y) + (*iter_z) * (*iter_z)) < 0.5) continue;
+                lidar_cloud->pt_list_.emplace_back(Point3D{*iter_x, *iter_y, *iter_z});
+            }
         }
         if(lidar_cb_){
             lidar_cb_(lidar_cloud);
@@ -134,7 +142,6 @@
             gps_cb_(gps_data);
         }
     }
-
 
 
 

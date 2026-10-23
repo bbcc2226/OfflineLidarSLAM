@@ -126,7 +126,27 @@ colcon build --packages-select offline_lidar_slam
 
 3. **Configure Parameters**: Edit [include/Config/Config.yaml](include/Config/Config.yaml) to adjust algorithm parameters for your dataset
 
-4. **Access Results**: Map and vehicle trajectory are generated during processing in `./LIO_results`
+4. **Access Results**: Map and vehicle trajectory are generated during processing in `./LIO_results`.
+   Saved PLY vertices include `x`, `y`, `z`, and LiDAR `intensity`. The
+   `/voxel_map` PointCloud2 topic also publishes an `intensity` field; select
+   the `Intensity` color transformer and `intensity` channel in RViz2.
+
+   Geometrically evaluated loop candidates are recorded in
+   `./loop_closure_checks.jsonl` by default. Each JSON object includes the
+   candidate frame IDs, spatial and traveled distance, NDT/GICP scores,
+   correction magnitude, acceptance result, rejection reason, and a heuristic
+   confidence from 0 to 1. The confidence is for diagnostics only; configured
+   score and correction thresholds determine acceptance.
+
+   When `save_loop_closure_debug_info` is enabled, inspect a geometrically
+   verified candidate by its current keyframe ID:
+   ```bash
+   python3 script/loop_closure_inspector.py 1599 \
+     --save-figure /tmp/loop_closure_1599.png
+   ```
+   The figure overlays the historical submap, the candidate at its initial
+   pose, and the candidate at its corrected pose, and compares their
+   nearest-neighbor residuals.
 
 ### Supported Input Formats
 
@@ -170,4 +190,3 @@ The SLAM system produces:
 - Reduce map voxel resolution
 - Implement sliding window map management
 - Consider processing in segments
-

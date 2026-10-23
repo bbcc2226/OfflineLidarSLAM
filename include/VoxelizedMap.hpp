@@ -10,14 +10,14 @@ class VoxelizedMap {
 public:
     explicit VoxelizedMap(double voxel_size);
 
-    void InsertPoint(const Vec3& p);
+    void InsertPoint(const Point3D& p);
 
-    void InsertCloud(std::vector<Vec3>& cloud, const Se3& sensor_pose,
+    void InsertCloud(PointCloud& cloud, const Se3& sensor_pose,
                      const double timestamp, const int frame_id);
 
-    void RemoveCloud(std::vector<Vec3>& cloud, const int frame_id);
+    void RemoveCloud(PointCloud& cloud, const int frame_id);
 
-    std::pair<double, std::vector<Vec3>> GetPointCloud() const;
+    std::pair<double, PointCloud> GetPointCloud() const;
 
     void RemoveSparseVoxels(int min_neighbors = 4);
 
@@ -26,17 +26,18 @@ public:
 private:
     struct VoxelData {
         Vec3 sum = Vec3::Zero();
+        double intensity_sum = 0.0;
         int count = 0;
 
-        void AddPoint(const Vec3& p);
-        void RemovePoint(const Vec3& p);
+        void AddPoint(const Point3D& p);
+        void RemovePoint(const Point3D& p);
         bool Empty() const;
-        Eigen::Vector3d Centroid() const;
+        Point3D Centroid() const;
     };
 
     using VoxelMap = std::unordered_map<VoxelKey, VoxelData, VoxelKeyHash>;
 
-    VoxelKey toKey(const Vec3& p) const;
+    VoxelKey toKey(const Point3D& p) const;
 
     double voxel_size_;
     VoxelMap voxel_map_;

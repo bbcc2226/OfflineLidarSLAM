@@ -5,13 +5,15 @@
 
 // --- VoxelData ---
 
-void VoxelizedMap::VoxelData::AddPoint(const Vec3& p) {
-    sum += p;
+void VoxelizedMap::VoxelData::AddPoint(const Point3D& p) {
+    sum += Vec3(p[0], p[1], p[2]);
+    intensity_sum += p.intensity_;
     ++count;
 }
 
-void VoxelizedMap::VoxelData::RemovePoint(const Vec3& p) {
-    sum -= p;
+void VoxelizedMap::VoxelData::RemovePoint(const Point3D& p) {
+    sum -= Vec3(p[0], p[1], p[2]);
+    intensity_sum -= p.intensity_;
     --count;
 }
 
@@ -19,8 +21,10 @@ bool VoxelizedMap::VoxelData::Empty() const {
     return count == 0;
 }
 
-Eigen::Vector3d VoxelizedMap::VoxelData::Centroid() const {
-    return sum / static_cast<double>(count);
+Point3D VoxelizedMap::VoxelData::Centroid() const {
+    const Vec3 centroid = sum / static_cast<double>(count);
+    return Point3D{{centroid.x(), centroid.y(), centroid.z()},
+                   intensity_sum / static_cast<double>(count)};
 }
 
 // --- VoxelizedMap ---
@@ -28,43 +32,51 @@ Eigen::Vector3d VoxelizedMap::VoxelData::Centroid() const {
 VoxelizedMap::VoxelizedMap(double voxel_size)
     : voxel_size_(voxel_size), timestamp_(0.0) {}
 
-VoxelKey VoxelizedMap::toKey(const Vec3& p) const {
+VoxelKey VoxelizedMap::toKey(const Point3D& p) const {
     return VoxelKey{
-        static_cast<int>(std::floor(p.x() / voxel_size_)),
-        static_cast<int>(std::floor(p.y() / voxel_size_)),
-        static_cast<int>(std::floor(p.z() / voxel_size_))
+        static_cast<int>(std::floor(p[0] / voxel_size_)),
+        static_cast<int>(std::floor(p[1] / voxel_size_)),
+        static_cast<int>(std::floor(p[2] / voxel_size_))
     };
 }
 
-void VoxelizedMap::InsertPoint(const Vec3& p) {
+void VoxelizedMap::InsertPoint(const Point3D& p) {
     VoxelKey key = toKey(p);
     voxel_map_[key].AddPoint(p);
 }
 
-void VoxelizedMap::InsertCloud(std::vector<Vec3>& cloud, const Se3& sensor_pose,
+void VoxelizedMap::InsertCloud(PointCloud& cloud, const Se3& sensor_pose,
                                 const double timestamp, const int frame_id) {
-    for (size_t i = 0; i < cloud.size(); ++i) {
-        cloud[i] = sensor_pose * cloud[i];
+    for (auto& point : cloud.pt_list_) {
+        const Vec3 transformed =
+            sensor_pose * Vec3(point[0], point[1], point[2]);
+        point[0] = transformed.x();
+        point[1] = transformed.y();
+        point[2] = transformed.z();
     }
     std::lock_guard<std::mutex> lock(cloud_mtx_);
-    for (const auto& p : cloud) {
+    for (const auto& p : cloud.pt_list_) {
         InsertPoint(p);
     }
     timestamp_ = timestamp;
     key_frame_poses_[frame_id] = sensor_pose;
 }
 
-void VoxelizedMap::RemoveCloud(std::vector<Vec3>& cloud, const int frame_id) {
+void VoxelizedMap::RemoveCloud(PointCloud& cloud, const int frame_id) {
     const auto it = key_frame_poses_.find(frame_id);
     if (it == key_frame_poses_.end()) {
         return;
     }
     const Se3& sensor_pose = it->second;
-    for (size_t i = 0; i < cloud.size(); ++i) {
-        cloud[i] = sensor_pose * cloud[i];
+    for (auto& point : cloud.pt_list_) {
+        const Vec3 transformed =
+            sensor_pose * Vec3(point[0], point[1], point[2]);
+        point[0] = transformed.x();
+        point[1] = transformed.y();
+        point[2] = transformed.z();
     }
     std::lock_guard<std::mutex> lock(cloud_mtx_);
-    for (const auto& p : cloud) {
+    for (const auto& p : cloud.pt_list_) {
         VoxelKey key = toKey(p);
         auto it = voxel_map_.find(key);
         if (it == voxel_map_.end()) {
@@ -79,14 +91,15 @@ void VoxelizedMap::RemoveCloud(std::vector<Vec3>& cloud, const int frame_id) {
     }
 }
 
-std::pair<double, std::vector<Vec3>> VoxelizedMap::GetPointCloud() const {
+std::pair<double, PointCloud> VoxelizedMap::GetPointCloud() const {
     std::lock_guard<std::mutex> lock(cloud_mtx_);
-    std::vector<Vec3> cloud;
-    cloud.reserve(voxel_map_.size());
+    PointCloud cloud;
+    cloud.has_intensity_ = true;
+    cloud.pt_list_.reserve(voxel_map_.size());
 
     for (const auto& kv : voxel_map_) {
         if (kv.second.count < ConfigManager::Get().General_.num_pts_threshold_for_viz) continue;
-        cloud.push_back(kv.second.Centroid());
+        cloud.pt_list_.push_back(kv.second.Centroid());
     }
 
     return {timestamp_, cloud};

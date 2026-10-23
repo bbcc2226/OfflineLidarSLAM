@@ -2,7 +2,10 @@
 #include "Common.hpp"
 #include "NDT_INC.hpp"
 
+#include <algorithm>
+#include <cmath>
 #include <fstream>
+#include <iomanip>
 
 #include <pcl/point_types.h>
 #include <pcl/registration/gicp.h>
@@ -30,7 +33,8 @@ std::shared_ptr<PCLCloud> ToPCLCloud(const std::shared_ptr<PointCloud>& cloud) {
 bool RefineLoopPoseWithGICP(const std::shared_ptr<PointCloud>& source_cloud,
                            const std::shared_ptr<PointCloud>& target_cloud,
                            const Se3& coarse_pose,
-                           Se3& refined_pose) {
+                           Se3& refined_pose,
+                           LoopClosureVerificationMetrics& metrics) {
     constexpr double kMaxCorrespondenceDistance = 0.3;
     constexpr int kMaxIterations = 20;
     constexpr double kTransformEpsilon = 1e-2;
@@ -42,6 +46,7 @@ bool RefineLoopPoseWithGICP(const std::shared_ptr<PointCloud>& source_cloud,
     auto target = ToPCLCloud(target_cloud);
     if (!source || !target || source->empty() || target->empty()) {
         refined_pose = coarse_pose;
+        metrics.reason = "empty_gicp_cloud";
         return false;
     }
 
@@ -57,14 +62,18 @@ bool RefineLoopPoseWithGICP(const std::shared_ptr<PointCloud>& source_cloud,
     gicp.align(aligned_output, coarse_pose.matrix().cast<float>());
     if (!gicp.hasConverged()) {
         refined_pose = coarse_pose;
+        metrics.reason = "gicp_not_converged";
         return false;
     }
 
     const double fitness_score = gicp.getFitnessScore();
+    metrics.gicp_converged = true;
+    metrics.gicp_score = fitness_score;
     if (fitness_score > ConfigManager::Get().LoopClosure_.loop_closure_gicp_fitness_score_threshold) {
         std::cout << "Loop-closure GICP rejected by fitness score: "
                   << fitness_score << "\n";
         refined_pose = coarse_pose;
+        metrics.reason = "gicp_score_above_threshold";
         return false;
     }
 
@@ -78,6 +87,8 @@ bool RefineLoopPoseWithGICP(const std::shared_ptr<PointCloud>& source_cloud,
     const Se3 correction = coarse_pose.inverse() * candidate_pose;
     const double correction_translation = correction.translation().norm();
     const double correction_rotation_deg = correction.so3().log().norm() * 180.0 / M_PI;
+    metrics.correction_translation = correction_translation;
+    metrics.correction_rotation_deg = correction_rotation_deg;
 
     if (correction_translation > kMaxAcceptedTranslationCorrection ||
         correction_rotation_deg > kMaxAcceptedRotationCorrectionDeg) {
@@ -86,6 +97,7 @@ bool RefineLoopPoseWithGICP(const std::shared_ptr<PointCloud>& source_cloud,
               << correction_rotation_deg << " deg, fitness="
               << fitness_score << "\n";
         refined_pose = coarse_pose;
+        metrics.reason = "gicp_correction_too_large";
         return false;
     }
 
@@ -95,42 +107,160 @@ bool RefineLoopPoseWithGICP(const std::shared_ptr<PointCloud>& source_cloud,
               << fitness_score << "\n";
 
     refined_pose = candidate_pose;
+    metrics.reason = "accepted";
     return true;
+}
+
+double LoopConfidence(const LoopClosureVerificationMetrics& metrics) {
+    const auto& cfg = ConfigManager::Get().LoopClosure_;
+    const auto score_confidence = [](double score, double threshold) {
+        if (!std::isfinite(score) || threshold <= 0.0) {
+            return 0.0;
+        }
+        return std::exp(-std::max(0.0, score) / threshold);
+    };
+
+    const double ndt_confidence =
+        score_confidence(metrics.ndt_score,
+                         cfg.loop_closure_fitness_score_threshold);
+    if (!metrics.gicp_converged) {
+        return 0.5 * ndt_confidence;
+    }
+
+    const double gicp_confidence =
+        score_confidence(metrics.gicp_score,
+                         cfg.loop_closure_gicp_fitness_score_threshold);
+    double correction_confidence = 0.0;
+    if (std::isfinite(metrics.correction_translation) &&
+        std::isfinite(metrics.correction_rotation_deg)) {
+        correction_confidence = std::exp(
+            -0.5 * (metrics.correction_translation / 3.0 +
+                    metrics.correction_rotation_deg / 8.0));
+    }
+
+    return std::clamp(
+        0.4 * ndt_confidence +
+        0.5 * gicp_confidence +
+        0.1 * correction_confidence,
+        0.0,
+        1.0);
+}
+
+void WriteJsonNumber(std::ostream& output, double value) {
+    if (std::isfinite(value)) {
+        output << value;
+    } else {
+        output << "null";
+    }
 }
 
 }  // namespace
 
+LoopClosure::LoopClosure() {
+    std::ofstream output(loop_closure_log_path_, std::ios::trunc);
+    if (!output.is_open()) {
+        std::cerr << "Failed to initialize loop closure log: "
+                  << loop_closure_log_path_ << "\n";
+    }
+}
+
+void LoopClosure::RecordLoopCheck(
+    int current_frame_id,
+    int history_frame_id,
+    double spatial_distance,
+    double travel_distance,
+    bool accepted,
+    const LoopClosureVerificationMetrics& metrics) const {
+    std::ofstream output(loop_closure_log_path_, std::ios::app);
+    if (!output.is_open()) {
+        std::cerr << "Failed to append loop closure log: "
+                  << loop_closure_log_path_ << "\n";
+        return;
+    }
+
+    output << std::setprecision(15)
+           << "{\"current_frame_id\":" << current_frame_id
+           << ",\"history_frame_id\":" << history_frame_id
+           << ",\"spatial_distance_m\":";
+    WriteJsonNumber(output, spatial_distance);
+    output << ",\"travel_distance_m\":";
+    WriteJsonNumber(output, travel_distance);
+    output << ",\"ndt_score\":";
+    WriteJsonNumber(output, metrics.ndt_score);
+    output << ",\"ndt_threshold\":"
+           << ConfigManager::Get().LoopClosure_.loop_closure_fitness_score_threshold
+           << ",\"gicp_converged\":"
+           << (metrics.gicp_converged ? "true" : "false")
+           << ",\"gicp_score\":";
+    WriteJsonNumber(output, metrics.gicp_score);
+    output << ",\"gicp_threshold\":"
+           << ConfigManager::Get().LoopClosure_.loop_closure_gicp_fitness_score_threshold
+           << ",\"correction_translation_m\":";
+    WriteJsonNumber(output, metrics.correction_translation);
+    output << ",\"correction_rotation_deg\":";
+    WriteJsonNumber(output, metrics.correction_rotation_deg);
+    output << ",\"accepted\":" << (accepted ? "true" : "false")
+           << ",\"confidence\":" << LoopConfidence(metrics)
+           << ",\"reason\":\"" << metrics.reason << "\"}\n";
+}
+
 std::pair<int,Se3> LoopClosure::DetectLoop(){
     std::pair<int,Se3> loop_closure_edge = {-1, Se3()};
-    if(keyframes_list_.size() < loop_closure_min_keyframe_gap_ || 
+    if(keyframes_list_.size() < static_cast<size_t>(loop_closure_min_keyframe_gap_) ||
+        cumulative_travel_distance_.back() < loop_closure_min_travel_distance_ ||
         keyframes_list_.back()->key_frame_id_ - last_kf_id_ < skip_count_){
         return loop_closure_edge;
     }else{
         const auto& current_kf = keyframes_list_.back();
         int cloest_id = -1;
         double cloest_distance = std::numeric_limits<double>::max();
+        double closest_travel_distance = 0.0;
         for(int i = 0; i < static_cast<int>(keyframes_list_.size()) - loop_closure_min_keyframe_gap_; ++i){
             const auto& candidate_kf = keyframes_list_[i];
-            double distance = (current_kf->rtk_pos_ - candidate_kf->rtk_pos_).norm();
+            const Vec3 current_position = current_kf->optimized_pose_.first
+                ? current_kf->optimized_pose_.second.translation()
+                : current_kf->lio_pose_.translation();
+            const Vec3 candidate_position = candidate_kf->optimized_pose_.first
+                ? candidate_kf->optimized_pose_.second.translation()
+                : candidate_kf->lio_pose_.translation();
+            double distance = (current_position - candidate_position).norm();
+            const double travel_distance =
+                cumulative_travel_distance_.back() -
+                cumulative_travel_distance_[i];
             const int keyframe_id_gap = current_kf->key_frame_id_ - candidate_kf->key_frame_id_;
-            if(distance < loop_distance_threshold_ && keyframe_id_gap > loop_closure_min_keyframe_gap_){
+            if(distance < loop_distance_threshold_ &&
+               travel_distance >= loop_closure_min_travel_distance_ &&
+               keyframe_id_gap > loop_closure_min_keyframe_gap_){
                 if(distance < cloest_distance){
                     cloest_distance = distance;
+                    closest_travel_distance = travel_distance;
                     cloest_id = i;
                 }
             }
         }
         if(cloest_id != -1){
             std::vector<std::shared_ptr<KeyFrame>> candidate_history_frames;
-            const int map_half_window = 5;
+            const int map_half_window = 10;
             for(int i = std::max(0, cloest_id - map_half_window); i <= std::min(static_cast<int>(keyframes_list_.size()) - 1, cloest_id + map_half_window); ++i){
                 candidate_history_frames.push_back(keyframes_list_[i]);
             }
             bool loop_accepted = false;
             Se3 submap_world_pose;
-            loop_accepted = VerifyLoopSubmap(current_kf, candidate_history_frames, submap_world_pose);
+            LoopClosureVerificationMetrics metrics;
+            loop_accepted = VerifyLoopSubmap(
+                current_kf,
+                candidate_history_frames,
+                submap_world_pose,
+                metrics);
+            const auto& best_kf = keyframes_list_[cloest_id];
+            RecordLoopCheck(
+                current_kf->key_frame_id_,
+                best_kf->key_frame_id_,
+                cloest_distance,
+                closest_travel_distance,
+                loop_accepted,
+                metrics);
             if(loop_accepted){
-                const auto& best_kf = keyframes_list_[cloest_id];
                 Se3 relative_vs_best = best_kf->optimized_pose_.second.inverse() * submap_world_pose;
                 loop_closure_edge = std::make_pair(best_kf->key_frame_id_, relative_vs_best);
                 std::cout<<"Loop closure accepted: frame "<<current_kf->key_frame_id_
@@ -153,7 +283,7 @@ std::pair<int,Se3> LoopClosure::DetectLoop(){
 
 
 bool LoopClosure::VerifyLoop(const std::shared_ptr<KeyFrame>& kf1, const std::shared_ptr<KeyFrame>& kf2,
-                            Se3& relative_pose){
+                            Se3& relative_pose, LoopClosureVerificationMetrics& metrics){
     // perform NDT scan matching between the two keyframes and compute the fitness score
     NDT_INC ndt(8.0);
     VoxelFilter filter(0.7);
@@ -169,26 +299,29 @@ bool LoopClosure::VerifyLoop(const std::shared_ptr<KeyFrame>& kf1, const std::sh
     Se3 optimized_pose = ndt.Align(cloud1_ptr, init_guess, 60);
 
     double fitness_score = ndt.ComputeFitnessScore(cloud1_ptr, optimized_pose);
+    metrics.ndt_score = fitness_score;
     std::cout<<"Loop closure verification between frame "<<kf1->key_frame_id_<<" and frame "<<kf2->key_frame_id_<<" fitness score: "<<fitness_score<<"\n";
     if(fitness_score < ConfigManager::Get().LoopClosure_.loop_closure_fitness_score_threshold){
         Se3 refined_pose = optimized_pose;
-        if(!RefineLoopPoseWithGICP(cloud1_ptr, cloud2_ptr, optimized_pose, refined_pose)){
+        if(!RefineLoopPoseWithGICP(
+            cloud1_ptr, cloud2_ptr, optimized_pose, refined_pose, metrics)){
             return false;
         }
         optimized_pose = refined_pose;
         relative_pose = optimized_pose;
         return true;
     }else{
+        metrics.reason = "ndt_score_above_threshold";
         return false;
     }
 
 }
 
 bool LoopClosure::VerifyLoopSubmap(const std::shared_ptr<KeyFrame>& curr_frame, const std::vector<std::shared_ptr<KeyFrame>>& history_frames,
-                            Se3& relative_pose){
+                            Se3& relative_pose, LoopClosureVerificationMetrics& metrics){
 
-    NDT_INC ndt(10.0);  // large capacity: submap may span many frames
-    VoxelFilter filter(0.7);
+    NDT_INC ndt(1.5);  // large capacity: submap may span many frames
+    VoxelFilter filter(0.3);
     std::shared_ptr<PointCloud> submap_ptr = std::make_shared<PointCloud>();
     for(const auto& kf : history_frames){
         std::shared_ptr<PointCloud> cloud_ptr = std::make_shared<PointCloud>();
@@ -206,11 +339,13 @@ bool LoopClosure::VerifyLoopSubmap(const std::shared_ptr<KeyFrame>& curr_frame, 
     Se3 optimized_pose = ndt.Align(curr_cloud_ptr, init_guess, 60);
 
     double fitness_score = ndt.ComputeFitnessScore(curr_cloud_ptr, optimized_pose);
+    metrics.ndt_score = fitness_score;
     std::cout<<"Loop closure submap verification for frame "<<curr_frame->key_frame_id_<<" fitness score: "<<fitness_score<<"\n";
 
     if(fitness_score < ConfigManager::Get().LoopClosure_.loop_closure_fitness_score_threshold){
         Se3 refined_pose = optimized_pose;
-        if(!RefineLoopPoseWithGICP(curr_cloud_ptr, submap_ptr, optimized_pose, refined_pose)){
+        if(!RefineLoopPoseWithGICP(
+            curr_cloud_ptr, submap_ptr, optimized_pose, refined_pose, metrics)){
             return false;
         }
         optimized_pose = refined_pose;
@@ -241,6 +376,7 @@ bool LoopClosure::VerifyLoopSubmap(const std::shared_ptr<KeyFrame>& curr_frame, 
         }
         return true;
     }else{
+        metrics.reason = "ndt_score_above_threshold";
         return false;
     }
 }

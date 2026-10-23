@@ -9,6 +9,7 @@ This script compares three states for a loop-closure candidate:
 It opens a matplotlib figure with:
   - XY overlay before alignment
   - XY overlay after alignment
+  - combined XY overlay of the submap, initial pose, and corrected pose
   - nearest-neighbor residual histograms before vs after alignment
 
 It also prints summary metrics so the quality improvement is obvious.
@@ -197,36 +198,50 @@ def main() -> int:
     print(f"Mean improvement      : {raw_dist.mean() - aligned_dist.mean():.3f} m")
     print(f"Median improvement    : {np.median(raw_dist) - np.median(aligned_dist):.3f} m")
 
-    fig, axes = plt.subplots(1, 3, figsize=(19, 6))
+    fig, axes = plt.subplots(2, 2, figsize=(14, 12))
+    before_axis = axes[0, 0]
+    after_axis = axes[0, 1]
+    combined_axis = axes[1, 0]
+    residual_axis = axes[1, 1]
 
-    axes[0].scatter(submap[:, 0], submap[:, 1], s=1, c="#1f77b4", alpha=0.35, label="Submap")
-    axes[0].scatter(raw_init[:, 0], raw_init[:, 1], s=2, c="#d62728", alpha=0.55, label="Raw + init guess")
-    axes[0].set_title("Before refinement")
-    axes[0].set_xlabel("x [m]")
-    axes[0].set_ylabel("y [m]")
-    axes[0].legend(loc="upper right")
-    axes[0].grid(True, alpha=0.2)
-    set_equal_xy_axes(axes[0], (submap, raw_init))
+    before_axis.scatter(submap[:, 0], submap[:, 1], s=1, c="#1f77b4", alpha=0.35, label="History submap")
+    before_axis.scatter(raw_init[:, 0], raw_init[:, 1], s=2, c="#d62728", alpha=0.55, label="Candidate at initial pose")
+    before_axis.set_title("Before registration")
+    before_axis.set_xlabel("x [m]")
+    before_axis.set_ylabel("y [m]")
+    before_axis.legend(loc="upper right")
+    before_axis.grid(True, alpha=0.2)
+    set_equal_xy_axes(before_axis, (submap, raw_init))
 
-    axes[1].scatter(submap[:, 0], submap[:, 1], s=1, c="#1f77b4", alpha=0.35, label="Submap")
-    axes[1].scatter(aligned[:, 0], aligned[:, 1], s=2, c="#ff7f0e", alpha=0.55, label="Aligned scan")
-    axes[1].set_title("After refinement")
-    axes[1].set_xlabel("x [m]")
-    axes[1].set_ylabel("y [m]")
-    axes[1].legend(loc="upper right")
-    axes[1].grid(True, alpha=0.2)
-    set_equal_xy_axes(axes[1], (submap, aligned))
+    after_axis.scatter(submap[:, 0], submap[:, 1], s=1, c="#1f77b4", alpha=0.35, label="History submap")
+    after_axis.scatter(aligned[:, 0], aligned[:, 1], s=2, c="#ff7f0e", alpha=0.55, label="Candidate at corrected pose")
+    after_axis.set_title("After registration")
+    after_axis.set_xlabel("x [m]")
+    after_axis.set_ylabel("y [m]")
+    after_axis.legend(loc="upper right")
+    after_axis.grid(True, alpha=0.2)
+    set_equal_xy_axes(after_axis, (submap, aligned))
+
+    combined_axis.scatter(submap[:, 0], submap[:, 1], s=1, c="#1f77b4", alpha=0.25, label="History submap")
+    combined_axis.scatter(raw_init[:, 0], raw_init[:, 1], s=2, c="#d62728", alpha=0.35, label="Initial candidate")
+    combined_axis.scatter(aligned[:, 0], aligned[:, 1], s=2, c="#ff7f0e", alpha=0.45, label="Corrected candidate")
+    combined_axis.set_title("Initial and corrected poses overlaid")
+    combined_axis.set_xlabel("x [m]")
+    combined_axis.set_ylabel("y [m]")
+    combined_axis.legend(loc="upper right")
+    combined_axis.grid(True, alpha=0.2)
+    set_equal_xy_axes(combined_axis, (submap, raw_init, aligned))
 
     bins = np.linspace(0.0, args.hist_max_distance, 60)
     clipped_raw = np.clip(raw_dist, 0.0, args.hist_max_distance)
     clipped_aligned = np.clip(aligned_dist, 0.0, args.hist_max_distance)
-    axes[2].hist(clipped_raw, bins=bins, alpha=0.55, color="#d62728", label="Raw + init guess")
-    axes[2].hist(clipped_aligned, bins=bins, alpha=0.55, color="#ff7f0e", label="Aligned scan")
-    axes[2].set_title("Nearest-neighbor residuals")
-    axes[2].set_xlabel("distance to submap [m]")
-    axes[2].set_ylabel("point count")
-    axes[2].legend(loc="upper right")
-    axes[2].grid(True, alpha=0.2)
+    residual_axis.hist(clipped_raw, bins=bins, alpha=0.55, color="#d62728", label="Initial candidate")
+    residual_axis.hist(clipped_aligned, bins=bins, alpha=0.55, color="#ff7f0e", label="Corrected candidate")
+    residual_axis.set_title("Nearest-neighbor residuals")
+    residual_axis.set_xlabel("distance to submap [m]")
+    residual_axis.set_ylabel("point count")
+    residual_axis.legend(loc="upper right")
+    residual_axis.grid(True, alpha=0.2)
 
     fig.suptitle(
         f"Loop-closure inspection for kf {args.kf_id if args.kf_id is not None else 'custom'}",

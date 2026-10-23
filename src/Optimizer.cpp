@@ -114,7 +114,7 @@ void GraphOptimizer::AddLIOEdge(g2o::VertexSE3* v1,
         Eigen::Matrix<double, 6, 6>::Identity();
 
     info *= ConfigManager::Get().Optimizer_.lio_edge_weight;
-    info(2,2) = 0.1; // less weight on z
+    //info(2,2) = 0.1; // less weight on z
     e->setInformation(info);
 
     optimizer_.addEdge(e);
@@ -137,7 +137,7 @@ void GraphOptimizer::AddLoopClosureEdge(g2o::VertexSE3* v_hist,
     Eigen::Matrix<double, 6, 6> info = Eigen::Matrix<double, 6, 6>::Zero();
     const double t_w = ConfigManager::Get().Optimizer_.loop_closure_edge_weight;
     info(0,0) = t_w * 0.6;  info(1,1) = t_w * 0.6;  info(2,2) = t_w * 0.6;  // roll/pitch low, yaw high
-    info(3,3) = t_w;  info(4,4) = t_w;  info(5,5) = t_w * 0.01; // xy strong, z weak
+    info(3,3) = t_w;  info(4,4) = t_w;  info(5,5) = t_w; // xy strong, z weak
     e->setInformation(info);
 
     // Huber robust kernel to guard against bad loop closure matches

@@ -169,11 +169,13 @@ SlamFrontEnd::Impl::Impl()
             this->PushLidarData(lidar_ptr);
         }
     );
-    data_loader_.SetIMUCallback(
-        [this](std::shared_ptr<IMUdata> imu_ptr){
-            this->PushImuData(imu_ptr);
-        }
-    );
+    if (!ConfigManager::Get().General_.using_LO_only) {
+        data_loader_.SetIMUCallback(
+            [this](std::shared_ptr<IMUdata> imu_ptr){
+                this->PushImuData(imu_ptr);
+            }
+        );
+    }
     data_loader_.SetGPSCallback(
         [this](std::shared_ptr<GPSdata> gps_ptr){
             this->PushGPSData(gps_ptr);
@@ -303,7 +305,7 @@ void SlamFrontEnd::Impl::MonitorStatus(){
 
 void SlamFrontEnd::Impl::ProcessSensorData(){
     int expected_lidar_id = 1;
-    const bool using_lio_only = ConfigManager::Get().General_.using_LIO_only;
+    const bool using_LO_only = ConfigManager::Get().General_.using_LO_only;
     while(!stop_){
         PointcloudComb curr_comb;
         {
@@ -343,7 +345,7 @@ void SlamFrontEnd::Impl::ProcessSensorData(){
 
         }
         // skip the first frame to avoidsome bad begining logs
-        if(!using_lio_only && curr_comb.frame_id_ > 0 && gps_wait_for_processing.size() > 0 && curr_comb.frame_id_ > 1){
+        if(!using_LO_only && curr_comb.frame_id_ > 0 && gps_wait_for_processing.size() > 0 && curr_comb.frame_id_ > 1){
             // has a valid lidar scan 
             Se3 pred_state;
             // check if first Lidar frame been recived and if the 'global' frame get set
@@ -380,15 +382,15 @@ void SlamFrontEnd::Impl::ProcessSensorData(){
                     curr_key_frame_ptr->key_frame_id_ = est_pose.first;
                     curr_key_frame_ptr->timestamp_ = curr_comb.timestamp_;
                     curr_key_frame_ptr->saved_frame_path_ = keyframe_path;
-                    curr_key_frame_ptr->valid_rtk_ = using_lio_only ? false : rtk_align_yaw_.GetValid();
+                    curr_key_frame_ptr->valid_rtk_ = using_LO_only ? false : rtk_align_yaw_.GetValid();
                     curr_key_frame_ptr->lio_pose_ = curr_est_pose;
                     curr_key_frame_ptr->rtk_pos_ = gps_coordinate;
-                    curr_key_frame_ptr->rtk_align_yaw_ = using_lio_only ? 0.0 : rtk_align_yaw_.yaw_rad_;
+                    curr_key_frame_ptr->rtk_align_yaw_ = using_LO_only ? 0.0 : rtk_align_yaw_.yaw_rad_;
                     kf_cb_(curr_key_frame_ptr);
                 }
                 timer.toc("Key frame callback time is: ");
             }
-            if(!using_lio_only){
+            if(!using_LO_only){
                 // for the RTK ENu frame yaw alignment with 'global' frame
                 rtk_align_yaw_.PushPos(gps_coordinate.head<2>(),est_pose.second.translation().head<2>());
                 if(rtk_align_yaw_.GetValid()){
@@ -410,7 +412,7 @@ void SlamFrontEnd::Impl::ProcessSensorData(){
                 <<" "<<gps_wait_for_processing.size()<<" "<<latest_imu_timestamp_<<"\n";
             Se3 pred_state;
             std::pair<int,Se3> est_pose = lo_.AddCloud(curr_comb.filtered_cloud_,curr_comb.raw_cloud_,pred_state,true);
-            state_estimator_.MeasurementUpdateLidar(est_pose.second,curr_comb.timestamp_);
+            //state_estimator_.MeasurementUpdateLidar(est_pose.second,curr_comb.timestamp_);
             const bool is_keyframe = est_pose.first >= 0 ? true : false;
             if(is_keyframe){
                 

@@ -77,10 +77,12 @@ struct OptimizerConfig{
 struct LoopClosureConfig{
     double loop_closure_search_radius = 10.0;
     int loop_closure_min_keyframe_gap = 50;
+    double loop_closure_min_travel_distance = 10.0;
     double loop_closure_fitness_score_threshold = 20;
     double loop_closure_gicp_fitness_score_threshold = 5.0;
     int top_k_loop_closure_candidates = 5;
     int skip_count_for_loop_closure_detection = 20;
+    std::string loop_closure_log_path = "./loop_closure_checks.jsonl";
 };
 
 struct GeneralConfig{
@@ -92,7 +94,7 @@ struct GeneralConfig{
     bool save_lo_frame = false;
     bool save_lio_frame = true;
     bool filter_saved_cloud = true;
-    bool using_LIO_only = false;
+    bool using_LO_only = false;
     bool save_loop_closure_debug_info = true;
 };
 
@@ -106,6 +108,3 @@ struct Config{
     GeneralConfig General_;
     LoopClosureConfig LoopClosure_;
 };
-
-
-

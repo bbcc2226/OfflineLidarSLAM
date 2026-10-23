@@ -35,6 +35,7 @@ struct GPSdata{
 // lidar sensor data [input]
 struct Point3D {
     std::array<double,3> point_;
+    double intensity_{0.0};
 
     Point3D() {
         point_.fill(0);
@@ -42,6 +43,11 @@ struct Point3D {
 
     Point3D(std::initializer_list<double> input_vals){
 
+        std::copy(input_vals.begin(),input_vals.end(),point_.begin());
+    }
+
+    Point3D(std::initializer_list<double> input_vals, double intensity)
+        : point_{}, intensity_(intensity) {
         std::copy(input_vals.begin(),input_vals.end(),point_.begin());
     }
 
@@ -59,6 +65,7 @@ struct Point3D {
 
 struct PointCloud {
     double timestamp_{0.0};
+    bool has_intensity_{false};
     std::vector<Point3D> pt_list_;
 
     PointCloud() = default;

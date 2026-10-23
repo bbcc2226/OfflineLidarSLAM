@@ -111,7 +111,7 @@ def resolve_cloud_path(metadata_path: Path, saved_frame_path: str) -> Path:
 def read_ascii_ply_vertices(ply_path: Path) -> np.ndarray:
     vertex_count = None
     header_ended = False
-    points: List[Tuple[float, float, float]] = []
+    points: List[Tuple[float, float, float, float]] = []
 
     with ply_path.open("r", encoding="utf-8") as handle:
         for raw_line in handle:
@@ -131,7 +131,12 @@ def read_ascii_ply_vertices(ply_path: Path) -> np.ndarray:
                 continue
 
             try:
-                points.append((float(xyz[0]), float(xyz[1]), float(xyz[2])))
+                points.append((
+                    float(xyz[0]),
+                    float(xyz[1]),
+                    float(xyz[2]),
+                    float(xyz[3]) if len(xyz) > 3 else 0.0,
+                ))
             except ValueError:
                 continue
 
@@ -170,7 +175,9 @@ def quaternion_xyzw_to_rotation_matrix(quaternion_xyzw: List[float]) -> np.ndarr
 def transform_points(points: np.ndarray, pose_record: dict) -> np.ndarray:
     rotation = quaternion_xyzw_to_rotation_matrix(pose_record["quaternion_xyzw"])
     translation = np.asarray(pose_record["translation"], dtype=np.float32)
-    return points @ rotation.T + translation
+    transformed = points.copy()
+    transformed[:, :3] = points[:, :3] @ rotation.T + translation
+    return transformed
 
 
 def make_rgb_uint32(color: np.ndarray) -> int:
@@ -179,8 +186,8 @@ def make_rgb_uint32(color: np.ndarray) -> int:
 
 def colored_cloud(points: np.ndarray, color: np.ndarray) -> np.ndarray:
     rgb = np.full((points.shape[0], 1), make_rgb_uint32(color), dtype=np.uint32)
-    xyz = points.astype(np.float32, copy=False)
-    return np.hstack((xyz, rgb.view(np.float32)))
+    xyz_intensity = points.astype(np.float32, copy=False)
+    return np.hstack((xyz_intensity, rgb.view(np.float32)))
 
 
 def load_transformed_keyframes(
@@ -230,7 +237,8 @@ class TwoFramePublisher(Node):
             PointField(name="x", offset=0, datatype=PointField.FLOAT32, count=1),
             PointField(name="y", offset=4, datatype=PointField.FLOAT32, count=1),
             PointField(name="z", offset=8, datatype=PointField.FLOAT32, count=1),
-            PointField(name="rgb", offset=12, datatype=PointField.FLOAT32, count=1),
+            PointField(name="intensity", offset=12, datatype=PointField.FLOAT32, count=1),
+            PointField(name="rgb", offset=16, datatype=PointField.FLOAT32, count=1),
         ]
         period = 1.0 / max(args.publish_rate, 1e-6)
         self.timer = self.create_timer(period, self.publish_cloud)
@@ -258,7 +266,7 @@ def main() -> int:
         f"Publishing keyframes {cli_args.frame_a:06d} and {cli_args.frame_b:06d} "
         f"to {cli_args.topic} with {cloud_points.shape[0]} transformed colored points"
     )
-    print("In RViz2, set the PointCloud2 display Color Transformer to RGB8.")
+    print("In RViz2, select the Intensity field for intensity coloring, or RGB8 for frame colors.")
 
     rclpy.init()
     node = TwoFramePublisher(cli_args, cloud_points)

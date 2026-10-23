@@ -15,6 +15,7 @@ std::shared_ptr<PointCloud> LoadKittiBin(const std::string& filename) {
     }
 
     std::shared_ptr<PointCloud> cloud_ptr = std::make_shared<PointCloud>();
+    cloud_ptr->has_intensity_ = true;
     input.seekg(0, std::ios::end);
     size_t num_bytes = input.tellg();
     input.seekg(0, std::ios::beg);
@@ -29,6 +30,7 @@ std::shared_ptr<PointCloud> LoadKittiBin(const std::string& filename) {
         pt[0] = data[0];
         pt[1] = data[1];
         pt[2] = data[2];
+        pt.intensity_ = data[3];
         cloud_ptr->pt_list_.push_back(pt);
     }
 
@@ -41,12 +43,15 @@ std::shared_ptr<PointCloud> ApplyTransform(Sophus::SE3d& T,
                                            std::shared_ptr<PointCloud> input_point_cloud) {
     const size_t N = input_point_cloud->pt_list_.size();
     std::shared_ptr<PointCloud> trans_cloud = std::make_shared<PointCloud>();
+    trans_cloud->timestamp_ = input_point_cloud->timestamp_;
+    trans_cloud->has_intensity_ = input_point_cloud->has_intensity_;
     trans_cloud->pt_list_.reserve(N);
 
     for(size_t i = 0; i < N; i++){
         const auto& curr_pt = input_point_cloud->pt_list_[i];
         Eigen::Vector3d t_pt = T * Eigen::Vector3d(curr_pt[0],curr_pt[1],curr_pt[2]);
-        trans_cloud->pt_list_.push_back({t_pt[0],t_pt[1],t_pt[2]});
+        trans_cloud->pt_list_.emplace_back(
+            Point3D{{t_pt[0], t_pt[1], t_pt[2]}, curr_pt.intensity_});
     }
     return trans_cloud;
 }
@@ -57,7 +62,9 @@ void InplaceApplyTransform(Sophus::SE3d& T,
     for(size_t i = 0; i < N; i++){
         const auto& curr_pt = input_point_cloud->pt_list_[i];
         Eigen::Vector3d t_pt = T * Eigen::Vector3d(curr_pt[0],curr_pt[1],curr_pt[2]);
-        input_point_cloud->pt_list_[i] = {t_pt[0],t_pt[1],t_pt[2]};
+        const double intensity = input_point_cloud->pt_list_[i].intensity_;
+        input_point_cloud->pt_list_[i] =
+            Point3D{{t_pt[0], t_pt[1], t_pt[2]}, intensity};
     }
 }
 
@@ -71,12 +78,14 @@ std::shared_ptr<PointCloud> ApplyDownSampleFilter(std::shared_ptr<PointCloud> in
 
 std::shared_ptr<PointCloud> ApplyRangeFilter(std::shared_ptr<PointCloud> input_cloud_ptr){
     auto output_ptr = std::make_shared<PointCloud>();
+    output_ptr->timestamp_ = input_cloud_ptr->timestamp_;
+    output_ptr->has_intensity_ = input_cloud_ptr->has_intensity_;
     output_ptr->pt_list_.reserve(input_cloud_ptr->pt_list_.size() / 3);
     for (const auto& p : input_cloud_ptr->pt_list_) {
         if(std::fabs(p[0]) > ConfigManager::Get().LidarOdometry_.lidar_x_range 
         || std::fabs(p[1]) > ConfigManager::Get().LidarOdometry_.lidar_y_range 
         || std::fabs(p[2]) > ConfigManager::Get().LidarOdometry_.lidar_z_range ||
-        p[2] < ConfigManager::Get().DataLoader_.kitti_groud_height ||p[0] < 0 ){
+        p[2] < ConfigManager::Get().DataLoader_.kitti_groud_height ||(p[0] < 0.0 && p[0] > -0.8) ){
             continue;
         }
         output_ptr->pt_list_.push_back(p);
@@ -96,24 +105,26 @@ std::string GenerateFramePath(const std::string folder_path, const int frame_cou
 void SaveCloud(const std::shared_ptr<PointCloud>& cloud,
                const std::string& path,
                bool filter_ground) {
-    pcl::PointCloud<pcl::PointXYZ>::Ptr pcl_cloud(new pcl::PointCloud<pcl::PointXYZ>());
+    pcl::PointCloud<pcl::PointXYZI>::Ptr pcl_cloud(new pcl::PointCloud<pcl::PointXYZI>());
 
     if(!filter_ground){
         pcl_cloud->reserve(cloud->pt_list_.size());
         for (const auto& pt : cloud->pt_list_) {
-            pcl::PointXYZ p;
+            pcl::PointXYZI p;
             p.x = pt[0];
             p.y = pt[1];
             p.z = pt[2];
+            p.intensity = static_cast<float>(pt.intensity_);
             pcl_cloud->push_back(p);
         }
     } else {
         for (const auto& pt : cloud->pt_list_) {
             if(pt[2] > -1.0){
-                pcl::PointXYZ p;
+                pcl::PointXYZI p;
                 p.x = pt[0];
                 p.y = pt[1];
                 p.z = pt[2];
+                p.intensity = static_cast<float>(pt.intensity_);
                 pcl_cloud->push_back(p);
             }
         }
@@ -184,13 +195,20 @@ bool LoadPLY(const std::string& filename,
     }
 
     points->pt_list_.clear();
+    points->has_intensity_ = false;
     points->pt_list_.reserve(vertex_count);
 
     for (size_t i = 0; i < vertex_count; ++i) {
-        double x, y, z;
+        double x, y, z, intensity = 0.0;
         fin >> x >> y >> z;
-        points->pt_list_.emplace_back(Point3D{x, y, z});
-        fin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+        if (!fin) return false;
+        std::string rest;
+        std::getline(fin, rest);
+        std::istringstream values(rest);
+        if (values >> intensity) {
+            points->has_intensity_ = true;
+        }
+        points->pt_list_.emplace_back(Point3D{{x, y, z}, intensity});
     }
 
     return true;

@@ -25,21 +25,21 @@ GeoConverter:
 
 LidarOdometry:
   voxel_resolution: 0.5
-  voxel_resolution_x: 0.1
-  voxel_resolution_y: 0.1
-  voxel_resolution_z: 0.1
+  voxel_resolution_x: 0.3
+  voxel_resolution_y: 0.3
+  voxel_resolution_z: 0.3
   ndt_resolution: 1.0
-  ndt_resolution_x: 0.5
-  ndt_resolution_y: 0.5
-  ndt_resolution_z: 0.5
-  scan_matching_use_gicp_fine_alignment: true
+  ndt_resolution_x: 0.9
+  ndt_resolution_y: 0.9
+  ndt_resolution_z: 0.9
+  scan_matching_use_gicp_fine_alignment: false
   scan_matching_gicp_max_correspondence_dist: 0.3
   scan_matching_gicp_max_iter: 10
   scan_matching_gicp_transform_epsilon: 1.0e-2
   scan_matching_gicp_fitness_epsilon: 1.0e-2
-  lidar_x_range: 4.0
-  lidar_y_range: 4.0
-  lidar_z_range: 4.0
+  lidar_x_range: 8.0
+  lidar_y_range: 8.0
+  lidar_z_range: 10.0
   reject_large_pose_jump: true
   max_pose_jump_translation: 0.3
   max_pose_jump_rotation_deg: 0.3
@@ -48,7 +48,7 @@ DataLoader:
   remove_groud: false
   kitti_groud_height: -1.0
   skip_frames: 0
-  ros_bag_path: "/root/ros2_ws/data/8_24"
+  ros_bag_path: "/root/ros2_ws/data/10_21_garden"
 
 General:
   map_voxel_resolution: 0.1
@@ -59,22 +59,24 @@ General:
   save_lo_frame: false
   save_lio_frame: true
   filter_saved_cloud: true
-  using_LIO_only: false
+  using_LO_only: true
   save_loop_closure_debug_info: true
 
 LoopClosure:
-  loop_closure_search_radius: 10
-  loop_closure_min_keyframe_gap: 20
+  loop_closure_search_radius: 2.0
+  loop_closure_min_keyframe_gap: 60
+  loop_closure_min_travel_distance: 10.0
   top_k_loop_closure_candidates: 5
-  loop_closure_fitness_score_threshold: 5.0
-  loop_closure_gicp_fitness_score_threshold: 5.0
-  skip_count_for_loop_closure_detection: 5
+  loop_closure_fitness_score_threshold: 3.0
+  loop_closure_gicp_fitness_score_threshold: 2.0
+  skip_count_for_loop_closure_detection: 200
+  loop_closure_log_path: "./loop_closure_checks.jsonl"
 
 Optimizer:
   gps_edge_weight: 0.01
   gps_relative_edge_weight: 0.00001
   lio_edge_weight: 1000.0
-  loop_closure_edge_weight: 200.0
+  loop_closure_edge_weight: 50.0
   local_optimization_widnow_size: 10
   min_keyframe_num_for_optimization: 5
   local_iterations: 10

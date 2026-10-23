@@ -53,15 +53,15 @@ std::pair<int,Se3> LidarOdodmetry::AddCloud(std::shared_ptr<PointCloud>& filtere
         Se3 est_pose = scan_matcher_.Align(filtered_cloud_ptr,
                                           ndt_inc_,
                                           guess);
-        if(!lo_flag) {
-            Se3 lo_est_pose = scan_matcher_.Align(filtered_cloud_ptr,
-                                          ndt_inc_,
-                                          motion_predicted_pose);
-            const bool accepted_pose = PoseJumpAccepted(lo_est_pose, est_pose);
-            if (!accepted_pose) {
-                est_pose = lo_est_pose;
-            }
-        }
+        // if(!lo_flag) {
+        //     Se3 lo_est_pose = scan_matcher_.Align(filtered_cloud_ptr,
+        //                                   ndt_inc_,
+        //                                   motion_predicted_pose);
+        //     const bool accepted_pose = PoseJumpAccepted(lo_est_pose, est_pose);
+        //     if (!accepted_pose) {
+        //         est_pose = lo_est_pose;
+        //     }
+        // }
 
         est_pose_buffer_.push_back(est_pose);
         frame_cnt_ += 1;

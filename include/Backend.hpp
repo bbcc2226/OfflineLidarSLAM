@@ -31,6 +31,7 @@ public:
 private:
     void PublishMap();
     void LocalGraphOptimization();
+    void GlobalLoopClosureOptimization();
 
     VoxelizedMap voxel_map_;
     MapPublisher map_publisher_;

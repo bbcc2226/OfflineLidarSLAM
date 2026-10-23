@@ -21,6 +21,7 @@
 #include <string>
 
 #include "NDT_INC.hpp"
+#include "LoopClosure.hpp"
 #include "ScanMatching.hpp"
 #include "Common.hpp"
 #include "DataType.hpp"
@@ -31,6 +32,23 @@
 // The test will look for /tmp/loop_submap_kf<KF_ID>.ply etc.
 static constexpr int KF_ID = 437;
 // ---------------------------------------------------------------------------
+
+TEST(LoopClosureGateTest, RejectsInsufficientTravel)
+{
+    LoopClosure detector;
+    const int keyframe_count =
+        ConfigManager::Get().LoopClosure_.loop_closure_min_keyframe_gap + 2;
+
+    for (int id = 0; id < keyframe_count; ++id) {
+        auto keyframe = std::make_shared<KeyFrame>();
+        keyframe->key_frame_id_ = id;
+        keyframe->lio_pose_ = Se3();
+        keyframe->optimized_pose_ = {true, Se3()};
+        detector.AddKeyFrame(keyframe);
+    }
+
+    EXPECT_EQ(detector.DetectLoop().first, -1);
+}
 
 static std::string submap_path()
 {

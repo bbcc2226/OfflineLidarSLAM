@@ -99,7 +99,7 @@ Config ConfigLoader::Load(const std::string& file_path) {
         cfg.General_.map_voxel_resolution_y = getOrDefault(general, "map_voxel_resolution_y", cfg.General_.map_voxel_resolution);
         cfg.General_.map_voxel_resolution_z = getOrDefault(general, "map_voxel_resolution_z", cfg.General_.map_voxel_resolution);
         cfg.General_.num_pts_threshold_for_viz = getOrDefault(general, "num_pts_threshold_for_viz", cfg.General_.num_pts_threshold_for_viz);
-        cfg.General_.using_LIO_only = getOrDefault(general, "using_LIO_only", cfg.General_.using_LIO_only);
+        cfg.General_.using_LO_only = getOrDefault(general, "using_LO_only", cfg.General_.using_LO_only);
         cfg.General_.save_loop_closure_debug_info = getOrDefault(general, "save_loop_closure_debug_info", cfg.General_.save_loop_closure_debug_info);
     }
     if(root["Optimizer"]){
@@ -117,10 +117,12 @@ Config ConfigLoader::Load(const std::string& file_path) {
         auto loop_closure = root["LoopClosure"];
         cfg.LoopClosure_.loop_closure_search_radius = getOrDefault(loop_closure, "loop_closure_search_radius", cfg.LoopClosure_.loop_closure_search_radius);
         cfg.LoopClosure_.loop_closure_min_keyframe_gap = getOrDefault(loop_closure, "loop_closure_min_keyframe_gap", cfg.LoopClosure_.loop_closure_min_keyframe_gap);
+        cfg.LoopClosure_.loop_closure_min_travel_distance = getOrDefault(loop_closure, "loop_closure_min_travel_distance", cfg.LoopClosure_.loop_closure_min_travel_distance);
         cfg.LoopClosure_.loop_closure_fitness_score_threshold = getOrDefault(loop_closure, "loop_closure_fitness_score_threshold", cfg.LoopClosure_.loop_closure_fitness_score_threshold);
         cfg.LoopClosure_.loop_closure_gicp_fitness_score_threshold = getOrDefault(loop_closure, "loop_closure_gicp_fitness_score_threshold", cfg.LoopClosure_.loop_closure_gicp_fitness_score_threshold);
         cfg.LoopClosure_.top_k_loop_closure_candidates = getOrDefault(loop_closure, "top_k_loop_closure_candidates", cfg.LoopClosure_.top_k_loop_closure_candidates);
         cfg.LoopClosure_.skip_count_for_loop_closure_detection = getOrDefault(loop_closure, "skip_count_for_loop_closure_detection", cfg.LoopClosure_.skip_count_for_loop_closure_detection);
+        cfg.LoopClosure_.loop_closure_log_path = getOrDefault(loop_closure, "loop_closure_log_path", cfg.LoopClosure_.loop_closure_log_path);
     }
     return cfg;
 }

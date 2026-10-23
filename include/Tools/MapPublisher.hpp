@@ -15,7 +15,7 @@ public:
     }
 
     void publish(
-        const std::vector<Vec3>& points,
+        const PointCloud& cloud,
         const double timestamp)
     {
         sensor_msgs::msg::PointCloud2 msg;
@@ -24,23 +24,30 @@ public:
         msg.header.frame_id = "map";
 
         msg.height = 1;
-        msg.width = points.size();
+        msg.width = cloud.pt_list_.size();
         msg.is_dense = true;
         msg.is_bigendian = false;
 
         sensor_msgs::PointCloud2Modifier modifier(msg);
-        modifier.setPointCloud2FieldsByString(1, "xyz");
-        modifier.resize(points.size());
+        modifier.setPointCloud2Fields(
+            4,
+            "x", 1, sensor_msgs::msg::PointField::FLOAT32,
+            "y", 1, sensor_msgs::msg::PointField::FLOAT32,
+            "z", 1, sensor_msgs::msg::PointField::FLOAT32,
+            "intensity", 1, sensor_msgs::msg::PointField::FLOAT32);
+        modifier.resize(cloud.pt_list_.size());
 
         sensor_msgs::PointCloud2Iterator<float> iter_x(msg, "x");
         sensor_msgs::PointCloud2Iterator<float> iter_y(msg, "y");
         sensor_msgs::PointCloud2Iterator<float> iter_z(msg, "z");
+        sensor_msgs::PointCloud2Iterator<float> iter_intensity(msg, "intensity");
 
-        for (const auto& p : points) {
-            *iter_x = static_cast<float>(p.x());
-            *iter_y = static_cast<float>(p.y());
-            *iter_z = static_cast<float>(p.z());
-            ++iter_x; ++iter_y; ++iter_z;
+        for (const auto& p : cloud.pt_list_) {
+            *iter_x = static_cast<float>(p[0]);
+            *iter_y = static_cast<float>(p[1]);
+            *iter_z = static_cast<float>(p[2]);
+            *iter_intensity = static_cast<float>(p.intensity_);
+            ++iter_x; ++iter_y; ++iter_z; ++iter_intensity;
         }
 
         map_pub_->publish(msg);
