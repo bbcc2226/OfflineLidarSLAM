@@ -1,10 +1,21 @@
 ESKF:
-  process_vel_noise: 0.1
-  process_rot_noise: 0.1
+  process_vel_noise: 0.2
+  process_rot_noise: 0.2
   process_ba_noise: 1.0e-7
   process_bg_noise: 1.0e-7
-  measurement_pos_noise: 1.0e-3
-  measurement_rot_noise: 1.0e-3
+  measurement_pos_noise: 1.0e-5
+  measurement_rot_noise: 1.0e-5
+  imu_acceleration_scale: 9.80665
+  gravity_magnitude: 9.80665
+  initial_roll_deg: 1.11115578
+  initial_pitch_deg: -1.41946861
+  initial_acc_bias_x: -0.00110753
+  initial_acc_bias_y: -0.00086674
+  initial_acc_bias_z: -0.04468694
+  initial_gyro_bias_x: 0.00078723
+  initial_gyro_bias_y: 0.00212444
+  initial_gyro_bias_z: -0.00064839
+  max_imu_dt: 0.05
 
 FrontEnd:
   lidar_buffer_upper_capacity: 100
@@ -48,7 +59,7 @@ DataLoader:
   remove_groud: false
   kitti_groud_height: -1.0
   skip_frames: 0
-  ros_bag_path: "/root/ros2_ws/data/10_21_garden"
+  ros_bag_path: "/root/ros2_ws/data/new_garden"
 
 General:
   map_voxel_resolution: 0.1
@@ -60,6 +71,7 @@ General:
   save_lio_frame: true
   filter_saved_cloud: true
   using_LO_only: true
+  use_imu_prediction: false
   save_loop_closure_debug_info: true
 
 LoopClosure:

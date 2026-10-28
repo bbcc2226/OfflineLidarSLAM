@@ -81,6 +81,7 @@
         imu_data->acc_ << imu_msg.linear_acceleration.x,
                             imu_msg.linear_acceleration.y,
                             imu_msg.linear_acceleration.z;
+        imu_data->acc_ *= ConfigManager::Get().ESKF_.imu_acceleration_scale;
         imu_data->gyro_ << imu_msg.angular_velocity.x,
                             imu_msg.angular_velocity.y,
                             imu_msg.angular_velocity.z;
@@ -142,7 +143,6 @@
             gps_cb_(gps_data);
         }
     }
-
 
 
 

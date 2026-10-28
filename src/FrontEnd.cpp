@@ -154,7 +154,7 @@ private:
 
     void PointCloudDownSample();
 
-    std::string SaveLIOFrame(Se3& global_pose,const std::shared_ptr<PointCloud>& cloud, const int frame_id);
+    std::string SaveLIOFrame(const Se3& global_pose,const std::shared_ptr<PointCloud>& cloud, const int frame_id);
 };
 
 
@@ -169,7 +169,8 @@ SlamFrontEnd::Impl::Impl()
             this->PushLidarData(lidar_ptr);
         }
     );
-    if (!ConfigManager::Get().General_.using_LO_only) {
+    if (!ConfigManager::Get().General_.using_LO_only ||
+        ConfigManager::Get().General_.use_imu_prediction) {
         data_loader_.SetIMUCallback(
             [this](std::shared_ptr<IMUdata> imu_ptr){
                 this->PushImuData(imu_ptr);
@@ -306,17 +307,33 @@ void SlamFrontEnd::Impl::MonitorStatus(){
 void SlamFrontEnd::Impl::ProcessSensorData(){
     int expected_lidar_id = 1;
     const bool using_LO_only = ConfigManager::Get().General_.using_LO_only;
+    const bool use_imu_prediction =
+        ConfigManager::Get().General_.use_imu_prediction;
+    double previous_lidar_timestamp = 0.0;
     while(!stop_){
+        double available_imu_timestamp = 0.0;
+        {
+            std::lock_guard<std::mutex> lock(buffer_mtx_);
+            available_imu_timestamp = latest_imu_timestamp_;
+        }
+
         PointcloudComb curr_comb;
         {
             std::lock_guard<std::mutex> lock(lidar_process_mtx_);
             std::cout<<cloud_pq_.size()<<std::endl;
             if(!cloud_pq_.empty()){
-                curr_comb = cloud_pq_.top();
+                const auto& next_cloud = cloud_pq_.top();
                 // if(curr_comb.frame_id_ == expected_lidar_id && 
                 //     curr_comb.timestamp_ <= latest_imu_timestamp_&&
                 //     curr_comb.timestamp_ <= latest_gps_timestamp_){
-                if(curr_comb.frame_id_ == expected_lidar_id ){
+                const bool imu_required =
+                    use_imu_prediction || !using_LO_only;
+                const bool imu_ready =
+                    !imu_required ||
+                    finish_data_loading_.load() ||
+                    available_imu_timestamp >= next_cloud.timestamp_;
+                if(next_cloud.frame_id_ == expected_lidar_id && imu_ready){
+                    curr_comb = next_cloud;
                     cloud_pq_.pop();
                     expected_lidar_id += 1;
                     cloud_pq_size_--;
@@ -326,6 +343,10 @@ void SlamFrontEnd::Impl::ProcessSensorData(){
                 }
             }
         } // end of lidar process mutex
+        if (curr_comb.frame_id_ == 0) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(1));
+            continue;
+        }
         // start to process lidar point cloud
         std::vector<std::shared_ptr<IMUdata>> imu_wait_for_processing;
         std::vector<std::shared_ptr<GPSdata>> gps_wait_for_processing;
@@ -345,7 +366,98 @@ void SlamFrontEnd::Impl::ProcessSensorData(){
 
         }
         // skip the first frame to avoidsome bad begining logs
-        if(!using_LO_only && curr_comb.frame_id_ > 0 && gps_wait_for_processing.size() > 0 && curr_comb.frame_id_ > 1){
+        if (using_LO_only && use_imu_prediction &&
+            curr_comb.frame_id_ > 0) {
+            const bool estimator_initialized = lo_.ValidPose();
+            bool valid_imu_interval =
+                estimator_initialized &&
+                previous_lidar_timestamp > 0.0 &&
+                !imu_wait_for_processing.empty();
+            double interval_timestamp = previous_lidar_timestamp;
+            const double max_imu_dt =
+                ConfigManager::Get().ESKF_.max_imu_dt;
+            for (const auto& imu : imu_wait_for_processing) {
+                const double dt = imu->timestamp_ - interval_timestamp;
+                if (dt <= 0.0 || dt > max_imu_dt) {
+                    valid_imu_interval = false;
+                    break;
+                }
+                interval_timestamp = imu->timestamp_;
+            }
+            if (curr_comb.timestamp_ - interval_timestamp > max_imu_dt) {
+                valid_imu_interval = false;
+            }
+
+            Se3 predicted_pose;
+            if (valid_imu_interval) {
+                for (const auto& imu : imu_wait_for_processing) {
+                    state_estimator_.Prediction(imu);
+                }
+                predicted_pose = state_estimator_.GetLocalizationOutput();
+            }
+
+            TicToc timer;
+            timer.tic();
+            const auto lo_result = lo_.AddCloud(
+                curr_comb.filtered_cloud_,
+                curr_comb.raw_cloud_,
+                predicted_pose,
+                !valid_imu_interval);
+            timer.toc("NDT processing time is: ");
+
+            if (valid_imu_interval) {
+                state_estimator_.MeasurementUpdateLidar(
+                    lo_result.second, curr_comb.timestamp_);
+            } else {
+                state_estimator_.ResetFromLidar(
+                    lo_result.second, curr_comb.timestamp_);
+            }
+            const Se3 fused_pose =
+                state_estimator_.GetLocalizationOutput();
+            previous_lidar_timestamp = curr_comb.timestamp_;
+
+            const Se3 prediction_error =
+                valid_imu_interval
+                    ? predicted_pose.inverse() * lo_result.second
+                    : Se3();
+            std::cout
+                << "LIO frame " << curr_comb.frame_id_
+                << ": imu_samples=" << imu_wait_for_processing.size()
+                << ", prediction_valid="
+                << (valid_imu_interval ? "true" : "false");
+            if (valid_imu_interval) {
+                std::cout
+                    << ", pred_to_lo_translation="
+                    << prediction_error.translation().norm()
+                    << " m, pred_to_lo_rotation="
+                    << prediction_error.so3().log().norm() *
+                           180.0 / M_PI
+                    << " deg";
+            }
+            std::cout << "\n";
+
+            if (lo_result.first >= 0) {
+                const std::string keyframe_path = SaveLIOFrame(
+                    fused_pose,
+                    curr_comb.raw_cloud_,
+                    curr_comb.frame_id_);
+                if (kf_cb_) {
+                    auto key_frame = std::make_shared<KeyFrame>();
+                    key_frame->key_frame_id_ = lo_result.first;
+                    key_frame->timestamp_ = curr_comb.timestamp_;
+                    key_frame->saved_frame_path_ = keyframe_path;
+                    key_frame->valid_rtk_ = false;
+                    key_frame->imu_predicted_pose_ = predicted_pose;
+                    key_frame->lo_pose_ = lo_result.second;
+                    key_frame->lio_pose_ = fused_pose;
+                    key_frame->imu_prediction_valid_ =
+                        valid_imu_interval;
+                    key_frame->lio_enabled_ = true;
+                    key_frame->rtk_align_yaw_ = 0.0;
+                    kf_cb_(key_frame);
+                }
+            }
+        }else if(!using_LO_only && curr_comb.frame_id_ > 0 && gps_wait_for_processing.size() > 0 && curr_comb.frame_id_ > 1){
             // has a valid lidar scan 
             Se3 pred_state;
             // check if first Lidar frame been recived and if the 'global' frame get set
@@ -383,7 +495,12 @@ void SlamFrontEnd::Impl::ProcessSensorData(){
                     curr_key_frame_ptr->timestamp_ = curr_comb.timestamp_;
                     curr_key_frame_ptr->saved_frame_path_ = keyframe_path;
                     curr_key_frame_ptr->valid_rtk_ = using_LO_only ? false : rtk_align_yaw_.GetValid();
+                    curr_key_frame_ptr->imu_predicted_pose_ = pred_state;
+                    curr_key_frame_ptr->lo_pose_ = est_pose.second;
                     curr_key_frame_ptr->lio_pose_ = curr_est_pose;
+                    curr_key_frame_ptr->imu_prediction_valid_ =
+                        !imu_wait_for_processing.empty();
+                    curr_key_frame_ptr->lio_enabled_ = true;
                     curr_key_frame_ptr->rtk_pos_ = gps_coordinate;
                     curr_key_frame_ptr->rtk_align_yaw_ = using_LO_only ? 0.0 : rtk_align_yaw_.yaw_rad_;
                     kf_cb_(curr_key_frame_ptr);
@@ -425,6 +542,7 @@ void SlamFrontEnd::Impl::ProcessSensorData(){
                     curr_key_frame_ptr->timestamp_ = curr_comb.timestamp_;
                     curr_key_frame_ptr->saved_frame_path_ = keyframe_path;
                     curr_key_frame_ptr->valid_rtk_ = rtk_align_yaw_.GetValid();
+                    curr_key_frame_ptr->lo_pose_ = curr_est_pose;
                     curr_key_frame_ptr->lio_pose_ = curr_est_pose;
                     curr_key_frame_ptr->rtk_align_yaw_ = 0.0;
                     kf_cb_(curr_key_frame_ptr);
@@ -472,7 +590,7 @@ void SlamFrontEnd::Impl::PointCloudDownSample(){
     }
 }
 
-std::string SlamFrontEnd::Impl::SaveLIOFrame(Se3& global_pose,const std::shared_ptr<PointCloud>& cloud, const int frame_id){
+std::string SlamFrontEnd::Impl::SaveLIOFrame(const Se3& global_pose,const std::shared_ptr<PointCloud>& cloud, const int frame_id){
     if(ConfigManager::Get().General_.save_lio_frame){
         std::shared_ptr<PointCloud> saved_cloud;
         if(ConfigManager::Get().General_.filter_saved_cloud){

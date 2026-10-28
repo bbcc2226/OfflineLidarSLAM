@@ -160,6 +160,19 @@ colcon build --packages-select offline_lidar_slam
 
 Configuration is managed through [include/Config/Config.yaml](include/Config/Config.yaml). Parameters include ESKF noise settings, buffer capacities, voxel resolutions, data paths, and map generation options.
 
+The ESKF configuration includes Livox acceleration scaling, initial stationary
+IMU biases, gravity-derived roll and pitch, and a maximum propagation interval.
+The configured `10_21_garden` tilt uses the existing LO map as the world frame:
+the ESKF starts from the first LO pose and expresses gravity in that frame
+rather than rotating LO poses into a separate level frame. These initialization
+values are dataset-specific and should be recalibrated from a stationary period
+when using another sensor mounting or recording.
+
+Set `using_LO_only: true` and `use_imu_prediction: true` to use the ESKF as a
+GPS-free prediction source for LiDAR odometry. The backend publishes
+`/imu_predicted_trajectory`, `/lo_trajectory`, and `/lio_trajectory` for
+comparison; `/trajectory` remains the globally optimized backend path.
+
 ## Output
 
 The SLAM system produces:

@@ -35,6 +35,17 @@ Config ConfigLoader::Load(const std::string& file_path) {
         cfg.ESKF_.process_bg_noise = getOrDefault(eskf, "process_bg_noise", cfg.ESKF_.process_bg_noise);
         cfg.ESKF_.measurement_pos_noise = getOrDefault(eskf, "measurement_pos_noise", cfg.ESKF_.measurement_pos_noise);
         cfg.ESKF_.measurement_rot_noise = getOrDefault(eskf, "measurement_rot_noise", cfg.ESKF_.measurement_rot_noise);
+        cfg.ESKF_.imu_acceleration_scale = getOrDefault(eskf, "imu_acceleration_scale", cfg.ESKF_.imu_acceleration_scale);
+        cfg.ESKF_.gravity_magnitude = getOrDefault(eskf, "gravity_magnitude", cfg.ESKF_.gravity_magnitude);
+        cfg.ESKF_.initial_roll_deg = getOrDefault(eskf, "initial_roll_deg", cfg.ESKF_.initial_roll_deg);
+        cfg.ESKF_.initial_pitch_deg = getOrDefault(eskf, "initial_pitch_deg", cfg.ESKF_.initial_pitch_deg);
+        cfg.ESKF_.initial_acc_bias_x = getOrDefault(eskf, "initial_acc_bias_x", cfg.ESKF_.initial_acc_bias_x);
+        cfg.ESKF_.initial_acc_bias_y = getOrDefault(eskf, "initial_acc_bias_y", cfg.ESKF_.initial_acc_bias_y);
+        cfg.ESKF_.initial_acc_bias_z = getOrDefault(eskf, "initial_acc_bias_z", cfg.ESKF_.initial_acc_bias_z);
+        cfg.ESKF_.initial_gyro_bias_x = getOrDefault(eskf, "initial_gyro_bias_x", cfg.ESKF_.initial_gyro_bias_x);
+        cfg.ESKF_.initial_gyro_bias_y = getOrDefault(eskf, "initial_gyro_bias_y", cfg.ESKF_.initial_gyro_bias_y);
+        cfg.ESKF_.initial_gyro_bias_z = getOrDefault(eskf, "initial_gyro_bias_z", cfg.ESKF_.initial_gyro_bias_z);
+        cfg.ESKF_.max_imu_dt = getOrDefault(eskf, "max_imu_dt", cfg.ESKF_.max_imu_dt);
     }
 
 
@@ -100,6 +111,7 @@ Config ConfigLoader::Load(const std::string& file_path) {
         cfg.General_.map_voxel_resolution_z = getOrDefault(general, "map_voxel_resolution_z", cfg.General_.map_voxel_resolution);
         cfg.General_.num_pts_threshold_for_viz = getOrDefault(general, "num_pts_threshold_for_viz", cfg.General_.num_pts_threshold_for_viz);
         cfg.General_.using_LO_only = getOrDefault(general, "using_LO_only", cfg.General_.using_LO_only);
+        cfg.General_.use_imu_prediction = getOrDefault(general, "use_imu_prediction", cfg.General_.use_imu_prediction);
         cfg.General_.save_loop_closure_debug_info = getOrDefault(general, "save_loop_closure_debug_info", cfg.General_.save_loop_closure_debug_info);
     }
     if(root["Optimizer"]){

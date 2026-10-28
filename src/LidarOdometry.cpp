@@ -40,14 +40,12 @@ std::pair<int,Se3> LidarOdodmetry::AddCloud(std::shared_ptr<PointCloud>& filtere
     }else{
         Se3 guess = predicted_pose;
         Se3 motion_predicted_pose;
-        bool lo_flag = false;
         if(est_pose_buffer_.size() >= 2 ){
             Se3 T1 = est_pose_buffer_[est_pose_buffer_.size() - 1];
             Se3 T2 = est_pose_buffer_[est_pose_buffer_.size() - 2];
             motion_predicted_pose = T1 * (T2.inverse() * T1);
-            if(use_lo || total_cnt_ < 20 ){
+            if(use_lo){
                 guess = motion_predicted_pose;
-                lo_flag = true;
             }
         }
         Se3 est_pose = scan_matcher_.Align(filtered_cloud_ptr,

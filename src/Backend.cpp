@@ -119,6 +119,14 @@ void Backend::GlobalLoopClosureOptimization() {
 
         const int current_frame_id = key_frame->key_frame_id_;
         key_frame_info_map_[current_frame_id] = key_frame;
+        path_publisher_.AddLOPathPoint(key_frame->lo_pose_);
+        if (key_frame->lio_enabled_) {
+            path_publisher_.AddLIOPathPoint(key_frame->lio_pose_);
+        }
+        if (key_frame->imu_prediction_valid_) {
+            path_publisher_.AddImuPredictedPathPoint(
+                key_frame->imu_predicted_pose_);
+        }
 
         Se3 initial_pose = key_frame->lio_pose_;
         Se3 relative_pose;

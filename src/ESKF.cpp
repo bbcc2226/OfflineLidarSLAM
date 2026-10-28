@@ -1,5 +1,6 @@
 #include "ESKF.hpp"
 #include "ConfigManager.hpp"
+#include <cmath>
 #include <iostream>
 #include <Eigen/Dense>
 
@@ -22,12 +23,16 @@ struct ESKF::Impl{
 
     // P cov matrix
     Mat15 P_{Mat15::Identity()};
-    // Q process noise
-    Mat15 Q_{Mat15::Zero()};
+    Mat3 acc_noise_cov_{Mat3::Zero()};
+    Mat3 gyro_noise_cov_{Mat3::Zero()};
+    Mat3 acc_bias_noise_cov_{Mat3::Zero()};
+    Mat3 gyro_bias_noise_cov_{Mat3::Zero()};
     // error state [pos, vel, rot, acc_bias, gyro_bias] --> 15 X 1
     Vec15 dx_{Vec15::Zero()};
-    // gravity
-    Vec3 g_{0.0, 0.0, -9.81};
+    Vec3 g_{Vec3::Zero()};
+    Vec3 initial_specific_force_body_{Vec3::Zero()};
+    double max_imu_dt_{0.05};
+    size_t skipped_large_dt_count_{0};
 
     Impl();
     Impl(const Impl & other) = delete;
@@ -37,6 +42,8 @@ struct ESKF::Impl{
     void Prediction(const std::shared_ptr<IMUdata>& input_imu);
 
     void MeasurementUpdate(const Sophus::SE3d& input_pose, const double input_timestamp);
+
+    void ResetFromLidar(const Sophus::SE3d& input_pose, double input_timestamp);
 
     void UpdateReset();
 
@@ -49,12 +56,27 @@ struct ESKF::Impl{
 
 
 ESKF::Impl::Impl(){
-    // inital the process noise in prediction step
-    Q_.block<3, 3>(3, 3) = Mat3::Identity() * ConfigManager::Get().ESKF_.process_vel_noise;
-    Q_.block<3, 3>(6, 6) = Mat3::Identity() * ConfigManager::Get().ESKF_.process_rot_noise;
-    Q_.block<3, 3>(9, 9) = Mat3::Identity() * ConfigManager::Get().ESKF_.process_ba_noise;
-    Q_.block<3, 3>(12, 12) = Mat3::Identity() * ConfigManager::Get().ESKF_.process_bg_noise;
+    const auto& cfg = ConfigManager::Get().ESKF_;
+    acc_noise_cov_ = Mat3::Identity() * cfg.process_vel_noise;
+    gyro_noise_cov_ = Mat3::Identity() * cfg.process_rot_noise;
+    acc_bias_noise_cov_ = Mat3::Identity() * cfg.process_ba_noise;
+    gyro_bias_noise_cov_ = Mat3::Identity() * cfg.process_bg_noise;
+    ba_ << cfg.initial_acc_bias_x,
+           cfg.initial_acc_bias_y,
+           cfg.initial_acc_bias_z;
+    bg_ << cfg.initial_gyro_bias_x,
+           cfg.initial_gyro_bias_y,
+           cfg.initial_gyro_bias_z;
+    max_imu_dt_ = cfg.max_imu_dt;
 
+    const double roll = cfg.initial_roll_deg * M_PI / 180.0;
+    const double pitch = cfg.initial_pitch_deg * M_PI / 180.0;
+    const Eigen::Matrix3d body_to_level =
+        (Eigen::AngleAxisd(pitch, Vec3::UnitY()) *
+         Eigen::AngleAxisd(roll, Vec3::UnitX())).toRotationMatrix();
+    initial_specific_force_body_ =
+        body_to_level.transpose() *
+        Vec3(0.0, 0.0, cfg.gravity_magnitude);
 }
 
 void ESKF::Impl::UpdateReset(){
@@ -77,32 +99,78 @@ void ESKF::Impl::ProjectCov(){
 
 
 void ESKF::Impl::Prediction(const std::shared_ptr<IMUdata>& input_imu){
-    
-    const double dt = input_imu->timestamp_ - timestamp_;
-    // update the new state base on input imu
-    // std::cout<<"vel: "<<v_<<"\n";
-    Vec3 new_p = p_ + v_ * dt + 0.5 * (r_ * (input_imu->acc_ - ba_ ) + g_) * dt * dt;
-    Vec3 new_v = v_ + (r_ * (input_imu->acc_ - ba_) + g_) * dt;
-    So3 new_r = r_ * So3::exp((input_imu->gyro_ -bg_) * dt);
-    p_ = new_p;
-    v_ = new_v;
-    r_ = new_r;
+    if (!initialized_) {
+        return;
+    }
 
+    const double dt = input_imu->timestamp_ - timestamp_;
+    if (dt <= 0.0) {
+        std::cerr << "Skipping non-monotonic IMU sample: dt=" << dt << "\n";
+        return;
+    }
+    if (dt > max_imu_dt_) {
+        ++skipped_large_dt_count_;
+        if (skipped_large_dt_count_ == 1 ||
+            skipped_large_dt_count_ % 100 == 0) {
+            std::cerr << "Skipping IMU propagation across gap: dt=" << dt
+                      << " s, skipped gaps=" << skipped_large_dt_count_ << "\n";
+        }
+        prev_imu_data_ = input_imu;
+        timestamp_ = input_imu->timestamp_;
+        return;
+    }
+
+    const Mat3 rotation = r_.matrix();
+    const Vec3 corrected_acc = input_imu->acc_ - ba_;
+    const Vec3 corrected_gyro = input_imu->gyro_ - bg_;
+    const Vec3 world_acc = rotation * corrected_acc + g_;
+    const double dt_squared = dt * dt;
+
+    // Linearize about the state before applying the nominal update.
     Mat15 F = Mat15::Identity();
     F.block<3, 3>(0, 3) = Mat3::Identity() * dt;
-    F.block<3, 3>(3, 6) = -r_.matrix() * So3::hat(input_imu->acc_ - ba_) * dt;
-    F.block<3, 3>(3, 12) = -r_.matrix() * dt;
-    F.block<3, 3>(6, 6) = So3::exp(-(input_imu->gyro_ - bg_) * dt).matrix();
-    F.block<3, 3>(6, 9) = -Mat3::Identity() * dt;
+    F.block<3, 3>(0, 6) =
+        -0.5 * rotation * So3::hat(corrected_acc) * dt_squared;
+    F.block<3, 3>(0, 9) = -0.5 * rotation * dt_squared;
+    F.block<3, 3>(3, 6) =
+        -rotation * So3::hat(corrected_acc) * dt;
+    F.block<3, 3>(3, 9) = -rotation * dt;
+    F.block<3, 3>(6, 6) =
+        So3::exp(-corrected_gyro * dt).matrix();
+    F.block<3, 3>(6, 12) = -Mat3::Identity() * dt;
+
+    Mat15 Q_discrete = Mat15::Zero();
+    const Mat3 world_acc_noise = rotation * acc_noise_cov_ * rotation.transpose();
+    Q_discrete.block<3, 3>(0, 0) =
+        world_acc_noise * (dt * dt_squared / 3.0);
+    Q_discrete.block<3, 3>(0, 3) =
+        world_acc_noise * (dt_squared / 2.0);
+    Q_discrete.block<3, 3>(3, 0) =
+        Q_discrete.block<3, 3>(0, 3).transpose();
+    Q_discrete.block<3, 3>(3, 3) = world_acc_noise * dt;
+    Q_discrete.block<3, 3>(6, 6) = gyro_noise_cov_ * dt;
+    Q_discrete.block<3, 3>(9, 9) = acc_bias_noise_cov_ * dt;
+    Q_discrete.block<3, 3>(12, 12) = gyro_bias_noise_cov_ * dt;
+
     dx_ = F * dx_;
-    //update the covarnace matrix
-    P_ = F * P_ * F.transpose() + Q_;
+    P_ = F * P_ * F.transpose() + Q_discrete;
+    P_ = 0.5 * (P_ + P_.transpose());
+
+    p_ += v_ * dt + 0.5 * world_acc * dt_squared;
+    v_ += world_acc * dt;
+    r_ = r_ * So3::exp(corrected_gyro * dt);
+
     prev_imu_data_ = input_imu;
     timestamp_ = input_imu->timestamp_;
 }
 
 void ESKF::Impl::MeasurementUpdate(const Sophus::SE3d& T_meas,const double input_timestamp){
     if(!initialized_){
+        p_ = T_meas.translation();
+        v_.setZero();
+        r_ = T_meas.so3();
+        g_ = -(r_ * initial_specific_force_body_);
+        dx_.setZero();
         initialized_ = true;
         timestamp_ = input_timestamp;
         return;
@@ -141,6 +209,21 @@ void ESKF::Impl::MeasurementUpdate(const Sophus::SE3d& T_meas,const double input
     timestamp_ = input_timestamp;
 }
 
+void ESKF::Impl::ResetFromLidar(
+    const Sophus::SE3d& input_pose,
+    double input_timestamp) {
+    p_ = input_pose.translation();
+    v_.setZero();
+    r_ = input_pose.so3();
+    dx_.setZero();
+    P_ = Mat15::Identity();
+    if (!initialized_) {
+        g_ = -(r_ * initial_specific_force_body_);
+        initialized_ = true;
+    }
+    timestamp_ = input_timestamp;
+}
+
 
 ESKF::ESKF(): eskf_impl_(std::make_unique<Impl>()){
 
@@ -154,6 +237,12 @@ void ESKF::Prediction(std::shared_ptr<IMUdata> input_imu)
 void ESKF::MeasurementUpdateLidar(const Se3& input_pose, const double input_timestamp)
 {
   eskf_impl_->MeasurementUpdate(input_pose, input_timestamp);
+}
+
+void ESKF::ResetFromLidar(
+    const Se3& input_pose,
+    double input_timestamp) {
+  eskf_impl_->ResetFromLidar(input_pose, input_timestamp);
 }
 
 Se3 ESKF::GetLocalizationOutput() const {

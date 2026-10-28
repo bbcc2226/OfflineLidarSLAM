@@ -10,6 +10,17 @@ struct ESKFConfig{
     double process_bg_noise = 1.0e-7;
     double measurement_pos_noise = 1.0e-5;
     double measurement_rot_noise = 1.0e-5;
+    double imu_acceleration_scale = 9.80665;
+    double gravity_magnitude = 9.80665;
+    double initial_roll_deg = 0.0;
+    double initial_pitch_deg = 0.0;
+    double initial_acc_bias_x = 0.0;
+    double initial_acc_bias_y = 0.0;
+    double initial_acc_bias_z = 0.0;
+    double initial_gyro_bias_x = 0.0;
+    double initial_gyro_bias_y = 0.0;
+    double initial_gyro_bias_z = 0.0;
+    double max_imu_dt = 0.05;
 };
 
 struct FrontEndConfig{
@@ -95,6 +106,7 @@ struct GeneralConfig{
     bool save_lio_frame = true;
     bool filter_saved_cloud = true;
     bool using_LO_only = false;
+    bool use_imu_prediction = false;
     bool save_loop_closure_debug_info = true;
 };
 

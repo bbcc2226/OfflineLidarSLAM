@@ -12,6 +12,24 @@ public:
     PathPublisher() : Node("path_publisher") {
         path_pub_ = this->create_publisher<nav_msgs::msg::Path>("/trajectory", 10);
         rtk_pub_ = this->create_publisher<nav_msgs::msg::Path>("/rtk_trajectory", 10);
+        imu_predicted_pub_ = this->create_publisher<nav_msgs::msg::Path>(
+            "/imu_predicted_trajectory", 10);
+        lo_pub_ = this->create_publisher<nav_msgs::msg::Path>(
+            "/lo_trajectory", 10);
+        lio_pub_ = this->create_publisher<nav_msgs::msg::Path>(
+            "/lio_trajectory", 10);
+    }
+
+    void AddImuPredictedPathPoint(const Se3& pose) {
+        AddPoseToPath(pose, imu_predicted_path_, imu_predicted_pub_);
+    }
+
+    void AddLOPathPoint(const Se3& pose) {
+        AddPoseToPath(pose, lo_path_, lo_pub_);
+    }
+
+    void AddLIOPathPoint(const Se3& pose) {
+        AddPoseToPath(pose, lio_diagnostic_path_, lio_pub_);
     }
 
     void AddPathPoint(const Vec3& pos) {
@@ -118,10 +136,38 @@ public:
     }
 
 private:
+    void AddPoseToPath(
+        const Se3& input_pose,
+        nav_msgs::msg::Path& path,
+        const rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr& publisher) {
+        geometry_msgs::msg::PoseStamped pose;
+        pose.header.stamp = this->now();
+        pose.header.frame_id = "map";
+        pose.pose.position.x = input_pose.translation().x();
+        pose.pose.position.y = input_pose.translation().y();
+        pose.pose.position.z = input_pose.translation().z();
+
+        const Eigen::Quaterniond quaternion(input_pose.rotationMatrix());
+        pose.pose.orientation.x = quaternion.x();
+        pose.pose.orientation.y = quaternion.y();
+        pose.pose.orientation.z = quaternion.z();
+        pose.pose.orientation.w = quaternion.w();
+
+        path.header = pose.header;
+        path.poses.push_back(pose);
+        publisher->publish(path);
+    }
+
     rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr path_pub_;
     rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr rtk_pub_;
+    rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr imu_predicted_pub_;
+    rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr lo_pub_;
+    rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr lio_pub_;
     std::queue<Vec3> rtk_pos_buffer_;
     nav_msgs::msg::Path lio_path_;
     nav_msgs::msg::Path rtk_path_;
+    nav_msgs::msg::Path imu_predicted_path_;
+    nav_msgs::msg::Path lo_path_;
+    nav_msgs::msg::Path lio_diagnostic_path_;
     rclcpp::TimerBase::SharedPtr timer_;
 };

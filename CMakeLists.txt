@@ -158,6 +158,12 @@ if(BUILD_TESTING)
   ament_add_gtest(test_fe test/TestFrontEnd.cpp)
   target_link_libraries(test_fe frontend)
 
+  ament_add_gtest(test_eskf test/TestESKF.cpp)
+  target_link_libraries(test_eskf frontend)
+  target_compile_definitions(test_eskf PRIVATE
+    TEST_CONFIG_PATH="${CMAKE_CURRENT_SOURCE_DIR}/include/Config/Config.yaml"
+  )
+
   ament_add_gtest(test_slam test/TestSlamProcess.cpp)
   target_link_libraries(test_slam slam_process)
 

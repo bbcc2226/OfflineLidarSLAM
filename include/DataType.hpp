@@ -123,7 +123,11 @@ struct KeyFrame{
     std::string saved_frame_path_;
     bool valid_rtk_{false};
     Vec3 rtk_pos_;
+    Se3 imu_predicted_pose_;
+    Se3 lo_pose_;
     Se3 lio_pose_;
+    bool imu_prediction_valid_{false};
+    bool lio_enabled_{false};
     std::pair<bool,Se3> optimized_pose_{false, Se3()}; 
     double rtk_align_yaw_{0.0};
 };

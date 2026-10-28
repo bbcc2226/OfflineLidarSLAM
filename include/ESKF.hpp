@@ -22,6 +22,8 @@ public:
 
   void MeasurementUpdateLidar(const Sophus::SE3d& input_pose, const double input_timestamp);
 
+  void ResetFromLidar(const Sophus::SE3d& input_pose, double input_timestamp);
+
   //void MeasurementUpdateWheel(std::unique_ptr<WheelOdometry> input_wheel);
 
   Se3 GetLocalizationOutput() const ;
