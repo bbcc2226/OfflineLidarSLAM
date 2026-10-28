@@ -36,21 +36,21 @@ GeoConverter:
 
 LidarOdometry:
   voxel_resolution: 0.5
-  voxel_resolution_x: 0.3
-  voxel_resolution_y: 0.3
-  voxel_resolution_z: 0.3
+  voxel_resolution_x: 0.9
+  voxel_resolution_y: 0.9
+  voxel_resolution_z: 0.9
   ndt_resolution: 1.0
-  ndt_resolution_x: 0.9
-  ndt_resolution_y: 0.9
-  ndt_resolution_z: 0.9
+  ndt_resolution_x: 2.0
+  ndt_resolution_y: 2.0
+  ndt_resolution_z: 2.0
   scan_matching_use_gicp_fine_alignment: false
   scan_matching_gicp_max_correspondence_dist: 0.3
   scan_matching_gicp_max_iter: 10
   scan_matching_gicp_transform_epsilon: 1.0e-2
   scan_matching_gicp_fitness_epsilon: 1.0e-2
-  lidar_x_range: 8.0
-  lidar_y_range: 8.0
-  lidar_z_range: 10.0
+  lidar_x_range: 45
+  lidar_y_range: 45
+  lidar_z_range: 15.0
   reject_large_pose_jump: true
   max_pose_jump_translation: 0.3
   max_pose_jump_rotation_deg: 0.3
@@ -59,7 +59,7 @@ DataLoader:
   remove_groud: false
   kitti_groud_height: -1.0
   skip_frames: 0
-  ros_bag_path: "/root/ros2_ws/data/new_garden"
+  ros_bag_path: "/root/ros2_ws/data/roof_top"
 
 General:
   map_voxel_resolution: 0.1
